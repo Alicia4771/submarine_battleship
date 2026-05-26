@@ -8,6 +8,7 @@ public static class DataManager
     private static float submarine_rotation;    // 潜水艦の向き（y軸）
     
     private static int score;                   // 現在のスコア
+    private static List<string> enemy_ships_list = new();   // 敵艦のリスト
     
     
     public static void Initialize()
