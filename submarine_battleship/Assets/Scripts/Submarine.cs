@@ -2,8 +2,13 @@ using UnityEngine;
 
 public class Submarine : Ship
 {
-    [SerializeField] private float submarine_speed = 1f;
+    [SerializeField] private float submarine_speed;
     
+    void Awake()
+    {
+        if (submarine_speed <= 0) submarine_speed = 1;
+    }
+
     protected override void Start()
     {
         base.Start();
