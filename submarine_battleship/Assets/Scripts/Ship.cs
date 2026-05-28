@@ -2,10 +2,14 @@ using UnityEngine;
 
 public class Ship : MonoBehaviour
 {
-    private Rigidbody rigidbody;
+    protected Rigidbody rigidbody;
 
-    private float speed;        // 速度
-    private float max_speed;    // 最大速度
+    protected float speed;        // 速度
+    protected float max_speed;    // 最大速度
+
+    protected float rotateSpeed = 0;
+
+
 
     protected virtual void Start()
     {
@@ -17,16 +21,29 @@ public class Ship : MonoBehaviour
         
     }
 
-    public void Turn(float rotation_x)
+    protected virtual void FixedUpdate()
     {
-        if (rotation_x != 0)
+        Turn(rotateSpeed);
+    }
+
+    protected void Turn(float rotateSpeed)
+    {
+        if (rotateSpeed != 0)
         {
-            Quaternion delta = Quaternion.AngleAxis(rotation_x, Vector3.up);
-            rigidbody.MoveRotation(rigidbody.rotation * delta);
+            Quaternion deltaRotation = Quaternion.Euler(0f, rotateSpeed * Time.fixedDeltaTime, 0f);
+            rigidbody.MoveRotation(rigidbody.rotation * deltaRotation);
         }
         else
         {
             rigidbody.angularVelocity = Vector3.zero;
         }
+    }
+
+    public bool SetRotateSpeed(float rotateSpeed)
+    {
+        if (rotateSpeed == null) return false;
+
+        this.rotateSpeed = rotateSpeed;
+        return true;
     }
 }
