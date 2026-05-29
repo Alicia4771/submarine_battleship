@@ -11,4 +11,9 @@ public class EnemyShip : Ship
     {
         base.Update();
     }
+
+    protected override void FixedUpdate()
+    {
+        base.FixedUpdate();
+    }
 }

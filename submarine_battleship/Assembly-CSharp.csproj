@@ -51,11 +51,12 @@
   <ItemGroup>
     <Compile Include="Assets/Scripts/Ship.cs" />
     <Compile Include="Assets/Scripts/DataManager.cs" />
-    <Compile Include="Assets/test.cs" />
     <Compile Include="Assets/Scripts/MainCamera.cs" />
     <Compile Include="Assets/Scripts/ProconReceiver.cs" />
+    <Compile Include="Assets/Scripts/TutorialSceneManager.cs" />
     <Compile Include="Assets/TutorialInfo/Scripts/Readme.cs" />
     <Compile Include="Assets/Scripts/EnemyShip.cs" />
+    <Compile Include="Assets/Scripts/StartSceneManager.cs" />
     <Compile Include="Assets/Scripts/GameManager.cs" />
     <Compile Include="Assets/Scripts/Submarine.cs" />
   </ItemGroup>

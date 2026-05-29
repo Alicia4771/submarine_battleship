@@ -2,13 +2,20 @@ using UnityEngine;
 
 public class GameManager : MonoBehaviour
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    [SerializeField] private int time_limit;
+    private int default_time_limit = 60;
+    private int time_count = 0;
+    
+    void Awake()
+    {
+        if (time_limit <= 0) time_limit = default_time_limit;
+    }
+    
     void Start()
     {
-        
+        time_count = 0;
     }
 
-    // Update is called once per frame
     void Update()
     {
         

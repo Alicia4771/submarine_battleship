@@ -6,7 +6,7 @@ public class Submarine : Ship
     
     void Awake()
     {
-        if (submarine_speed <= 0) submarine_speed = 1;
+        if (submarine_speed < 0) submarine_speed = 1;
     }
 
     protected override void Start()
