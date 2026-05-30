@@ -17,10 +17,12 @@ public class StartSceneManager : MonoBehaviour
 
         if (gamepad == null)
         {
+            if (Keyboard.current.enterKey.wasPressedThisFrame) ChangeToTutorialScene();
+            
             return;
         }
 
-        if (gamepad.buttonEast.wasPressedThisFrame) ChangeToTutorialScene();
+        if (gamepad.buttonEast.wasPressedThisFrame || Keyboard.current.enterKey.wasPressedThisFrame) ChangeToTutorialScene();
     }
 
     private void ChangeToTutorialScene()
