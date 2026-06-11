@@ -4,7 +4,7 @@ using UnityEngine.Rendering;
 public class UnderwaterVolumeSwitcher : MonoBehaviour
 {
     [SerializeField] private Transform targetCamera;    // Main Camera を入れる
-    [SerializeField]private Volume underwaterVolume;   // UnderwaterVolume を入れる
+    [SerializeField] private Volume underwaterVolume;   // UnderwaterVolume を入れる
 
     void Reset()
     {
