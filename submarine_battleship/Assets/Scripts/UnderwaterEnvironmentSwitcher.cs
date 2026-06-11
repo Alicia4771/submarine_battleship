@@ -11,8 +11,8 @@ public class UnderwaterEnvironmentSwitcher : MonoBehaviour
     [SerializeField] private float blendRange = 1.0f;
 
     [Header("Fog (Underwater)")]
-    [SerializeField] private Color underwaterFogColor = new Color(0.0f, 0.35f, 0.45f, 1f);
-    [SerializeField] private float underwaterFogDensity = 0.05f;
+    [SerializeField] private Color underwaterFogColor = new Color(0.1f, 0.4f, 0.7f, 1f);
+    [SerializeField] private float underwaterFogDensity = 0.1f;
 
     [SerializeField] private GameObject underwaterDustObj;
     [SerializeField] private GameObject smallBubblesObj;
@@ -41,7 +41,7 @@ public class UnderwaterEnvironmentSwitcher : MonoBehaviour
 
         // Fogを水中だけ強く（wでブレンド）
         RenderSettings.fog = (w > 0.001f) || defaultFogEnabled;
-        RenderSettings.fogColor = Color.Lerp(defaultFogColor, underwaterFogColor, w);
+        RenderSettings.fogColor = underwaterFogColor;
         RenderSettings.fogDensity = Mathf.Lerp(defaultFogDensity, underwaterFogDensity, w);
 
         bool on = Camera.main.transform.position.y < 0f;
