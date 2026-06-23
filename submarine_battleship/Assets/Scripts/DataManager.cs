@@ -10,6 +10,8 @@ public static class DataManager
     private static float enemyShip_max_speed = 3.0f;   // 敵艦の最大速度
     private static float fellowShip_max_speed = 3.0f;  // 味方艦の最大速度
 
+    private static float enemyShip_rotate_radius = 60f;     // 敵艦の回転半径
+
     private static int score;                   // 現在のスコア
     private static List<string> enemy_ships_list = new();   // 敵艦のリスト
     
@@ -74,7 +76,7 @@ public static class DataManager
     /// <summary>
     /// 潜水艦の最大速度を返す
     /// </summary>
-    /// <returns>潜水艦の最大速度</returns>
+    /// <returns>float 潜水艦の最大速度</returns>
     public static float GetSubmarineMaxSpeed()
     {
         return submarine_max_speed;
@@ -85,7 +87,7 @@ public static class DataManager
     /// <summary>
     /// 敵艦の最大速度を返す
     /// </summary>
-    /// <returns>敵艦の最大速度</returns>
+    /// <returns>float 敵艦の最大速度</returns>
     public static float GetEnemyShipMaxSpeed()
     {
         return enemyShip_max_speed;
@@ -94,10 +96,20 @@ public static class DataManager
     /// <summary>
     /// 味方艦の最大速度を返す
     /// </summary>
-    /// <returns>味方艦の最大速度</returns>
+    /// <returns>float 味方艦の最大速度</returns>
     public static float GetFellowShipMaxSpeed()
     {
         return fellowShip_max_speed;
+    }
+
+
+    /// <summary>
+    /// 敵艦の回転半径を返す
+    /// </summary>
+    /// <returns>float 敵艦の回転半径</returns>
+    public static float GetEnemyShipRotateRadius()
+    {
+        return enemyShip_rotate_radius;
     }
 
 

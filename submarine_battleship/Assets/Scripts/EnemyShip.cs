@@ -6,8 +6,8 @@ public class EnemyShip : Ship
 {
     [Header("--- 円運動の設定 ---")]
     private Vector3 centerPoint;
-
-    [SerializeField] private float radius = 50f;
+    private float radius;
+    private float radius_random_factor = 0.05f;  // 半径のランダム変動の割合
     [SerializeField] private float movementSpeed = 0.5f;
     private float currentAngle = 0f;
 
@@ -18,18 +18,15 @@ public class EnemyShip : Ship
     {
         base.Start();
 
-        // if (centerPoint == null)
-        // {
-        //     GameObject defaultCenter = GameObject.Find("CenterPoint");
-        //     if (defaultCenter != null) centerPoint = defaultCenter.transform;
-        // }
-        float submarineRotation = DataManager.GetSubmarineRotation();
-        float spawnDirection = Random.Range(submarineRotation+180f, submarineRotation+270f);
-        float spawnDistance = radius * 3;
+        // float submarineRotation = DataManager.GetSubmarineRotation();
+        // float spawnDirection = Random.Range(submarineRotation+180f, submarineRotation+270f);
+        // float spawnDistance = radius * 3;
 
+        // centerPoint = DataManager.GetSubmarinePosition() + new Vector3(Mathf.Cos(spawnDirection * Mathf.Deg2Rad) * spawnDistance, 0f, Mathf.Sin(spawnDirection * Mathf.Deg2Rad) * spawnDistance);
+        centerPoint = this.transform.position;
+        radius = DataManager.GetEnemyShipRotateRadius() + Random.Range(radius * radius_random_factor * (-1), radius * radius_random_factor);
 
-        centerPoint = DataManager.GetSubmarinePosition() + new Vector3(Mathf.Cos(spawnDirection * Mathf.Deg2Rad) * spawnDistance, 0f, Mathf.Sin(spawnDirection * Mathf.Deg2Rad) * spawnDistance);
-
+        this.transform.position = centerPoint + new Vector3(radius, 0f, 0f);
 
         if (signalLight == null) signalLight = GetComponentInChildren<Light>();
 
