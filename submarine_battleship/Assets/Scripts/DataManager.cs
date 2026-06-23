@@ -21,6 +21,7 @@ public static class DataManager
     public static void Initialize()
     {
         SetScore(0);    // スコアを初期化
+        enemy_ships_list.Clear();    // 敵艦のリストを初期化
     }
 
     /// <summary>

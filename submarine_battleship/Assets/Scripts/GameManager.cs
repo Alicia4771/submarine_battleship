@@ -6,6 +6,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private float time_limit;
     private float default_time_limit = 60f;
     private float time_count = 0f;
+    private float time_count_before = 0f;
 
     [SerializeField, Tooltip("敵艦のプレハブ")] private GameObject enemyShipPrefab;
     private int enemyShipCount = 0;
@@ -19,17 +20,20 @@ public class GameManager : MonoBehaviour
     void Start()
     {
         DataManager.Initialize();
-        time_count = 0;
+        time_count = 0f;
+        time_count_before = 0f;
     }
 
     void Update()
     {
         time_count += Time.deltaTime;
 
-        if (time_count >= 3)
+        if (time_count_before < 3 &&time_count >= 3)
         {
             SpawnEnemyShip();
         }
+
+        time_count_before = time_count;
     }
 
 
