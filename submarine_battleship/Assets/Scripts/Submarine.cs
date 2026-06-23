@@ -19,6 +19,8 @@ public class Submarine : Ship
     protected override void Update()
     {
         base.Update();
+        DataManager.SetSubmarinePosition(transform.position);
+        DataManager.SetSubmarineRotation(transform.eulerAngles.y);
     }
 
     protected override void FixedUpdate()

@@ -48,6 +48,27 @@ public static class DataManager
     }
 
 
+    /// <summary>
+    /// 潜水艦の現在の向きを返す
+    /// </summary>
+    /// <returns> float 潜水艦の向き（y軸） </returns>
+    public static float GetSubmarineRotation()
+    {
+        return submarine_rotation;
+    }
+
+    /// <summary>
+    /// 潜水艦の現在の向きを設定する
+    /// </summary>
+    /// <param name="rotation">潜水艦の向き（y軸）</param>
+    /// <returns> bool 成功したかどうか（成功：true，失敗：false） </returns>
+    public static bool SetSubmarineRotation(float rotation)
+    {
+        submarine_rotation = rotation;
+        return true;
+    }
+
+
 
 
     /// <summary>
