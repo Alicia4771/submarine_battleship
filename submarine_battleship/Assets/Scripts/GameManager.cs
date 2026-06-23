@@ -18,6 +18,7 @@ public class GameManager : MonoBehaviour
     
     void Start()
     {
+        DataManager.Initialize();
         time_count = 0;
     }
 
@@ -56,7 +57,9 @@ public class GameManager : MonoBehaviour
         Vector3 spawnPosition = DataManager.GetSubmarinePosition() + spawnDirection * spawnDistance;
 
         GameObject enemyShip = Instantiate(enemyShipPrefab, spawnPosition, spawnRotation);
-        enemyShip.name = "EnemyShip_" + (++enemyShipCount);
+        string enemyShipName = "EnemyShip_" + (++enemyShipCount);
+        enemyShip.name = enemyShipName;
+        DataManager.AddEnemyShip(enemyShipName);
 
         if (enemyShip == null)
         {

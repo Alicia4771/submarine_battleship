@@ -18,11 +18,6 @@ public class EnemyShip : Ship
     {
         base.Start();
 
-        // float submarineRotation = DataManager.GetSubmarineRotation();
-        // float spawnDirection = Random.Range(submarineRotation+180f, submarineRotation+270f);
-        // float spawnDistance = radius * 3;
-
-        // centerPoint = DataManager.GetSubmarinePosition() + new Vector3(Mathf.Cos(spawnDirection * Mathf.Deg2Rad) * spawnDistance, 0f, Mathf.Sin(spawnDirection * Mathf.Deg2Rad) * spawnDistance);
         centerPoint = this.transform.position;
         radius = DataManager.GetEnemyShipRotateRadius() + Random.Range(radius * radius_random_factor * (-1), radius * radius_random_factor);
 

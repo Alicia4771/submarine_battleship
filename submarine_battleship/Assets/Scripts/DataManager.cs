@@ -161,4 +161,82 @@ public static class DataManager
         score = new_score;
         return true;
     }
+
+
+
+    /**
+     * 敵船を追加する
+     * @param string enemyShip_name 敵船の名前（例：EnemyShip_1, EnemyShip_21）
+     * @return bool 追加成功：true, 追加失敗：false
+     */
+    public static bool AddEnemyShip(string enemyShip_name)
+    {
+        // nullチェック
+        if (string.IsNullOrWhiteSpace(enemyShip_name)) return false;
+
+        // 形式チェック
+        string[] tokens = enemyShip_name.Split("_");
+        if (tokens.Length != 2) return false;
+        if (tokens[0] != "EnemyShip") return false;
+
+        enemy_ships_list.Add(enemyShip_name);
+        return true;
+    }
+
+    /**
+     * 敵船を削除する
+     * @param string enemyShip_name 敵船の名前（例：EnemyShip_1, EnemyShip_21）
+     * @return bool 削除成功：true, 削除失敗：false
+     */
+    public static bool DeleteEnemyShip(string enemyShip_name)
+    {
+        // nullチェック
+        if (string.IsNullOrWhiteSpace(enemyShip_name)) return false;
+
+        return enemy_ships_list.Remove(enemyShip_name);
+    }
+
+    /**
+     * 敵船の一覧をList<string>型で返す
+     * @return List<string> 敵船の一覧
+     */
+    public static List<string> GetEnemyShipList()
+    {
+        return enemy_ships_list;
+    }
+
+    /**
+     * 潜水艦と全ての敵船の距離と方角の情報をListにして返す
+     * 
+     * ## 情報の入り方
+     * [(subm_x - ship_x), (subm_z - ship_z), (distance)]
+     * - 潜水艦から敵船への方角：Vector2([0], [1])
+     * - 潜水艦から敵船までの距離；[2]
+     * 
+     * @return List<float[]> 
+     */
+    public static List<float[]> GetEnemyShipDistanceList()
+    {
+        List<float[]> EnemyShipDistanceList = new();
+
+        for (int i = 0; i < enemy_ships_list.Count; i++)
+        {
+            GameObject EnemyShip = GameObject.Find(enemy_ships_list[i]);
+            if (EnemyShip == null) continue;
+
+            float[] result = new float[3];
+
+            Vector3 enemyShip_pos = EnemyShip.transform.position;
+            float enemyShip_pos_x = enemyShip_pos.x;
+            float enemyShip_pos_z = enemyShip_pos.z;
+
+            result[0] = enemyShip_pos_x - submarine_position.x;
+            result[1] = enemyShip_pos_z - submarine_position.z;
+            result[2] = Mathf.Sqrt((result[0] * result[0]) + (result[1] * result[1]));
+
+            EnemyShipDistanceList.Add(result);
+        }
+
+        return EnemyShipDistanceList;
+    }
 }
