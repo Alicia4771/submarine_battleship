@@ -10,7 +10,7 @@ public static class DataManager
     private static float enemyShip_max_speed = 3.0f;   // 敵艦の最大速度
     private static float fellowShip_max_speed = 3.0f;  // 味方艦の最大速度
 
-    private static float enemyShip_rotate_radius = 60f;     // 敵艦の回転半径
+    private static float enemyShip_rotate_radius = 50f;     // 敵艦の回転半径
 
     private static int score;                   // 現在のスコア
     private static List<string> enemy_ships_list = new();   // 敵艦のリスト
