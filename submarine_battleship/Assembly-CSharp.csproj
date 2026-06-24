@@ -51,7 +51,9 @@
   <ItemGroup>
     <Compile Include="Assets/Scripts/Ship.cs" />
     <Compile Include="Assets/Scripts/DataManager.cs" />
+    <Compile Include="Assets/Scripts/Sonar.cs" />
     <Compile Include="Assets/Scripts/UnderwaterVolumeSwitcher.cs" />
+    <Compile Include="Assets/Scripts/MenuPanelManager.cs" />
     <Compile Include="Assets/Scripts/MainCamera.cs" />
     <Compile Include="Assets/Scripts/ProconReceiver.cs" />
     <Compile Include="Assets/Scripts/TutorialSceneManager.cs" />

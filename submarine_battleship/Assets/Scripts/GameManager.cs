@@ -9,6 +9,9 @@ public class GameManager : MonoBehaviour
     private float time_count_before = 0f;
 
     [SerializeField, Tooltip("敵艦のプレハブ")] private GameObject enemyShipPrefab;
+    private float enemyShipSpawnDistanceMagnification = 2f;     // 敵艦のスポーン距離を潜水艦の半径の何倍にするか
+    private float enemyShipSpawnAngleMin = 100f;                 // 敵艦のスポーン角度の最小値
+    private float enemyShipSpawnAngleMax = 270f;                 // 敵艦のスポーン角度の最大値
     private int enemyShipCount = 0;
 
     void Awake()
@@ -32,6 +35,14 @@ public class GameManager : MonoBehaviour
         {
             SpawnEnemyShip();
         }
+        if (time_count_before < 5 &&time_count >= 5)
+        {
+            SpawnEnemyShip();
+        }
+        if (time_count_before < 7 &&time_count >= 7)
+        {
+            SpawnEnemyShip();
+        }
 
         time_count_before = time_count;
     }
@@ -48,11 +59,11 @@ public class GameManager : MonoBehaviour
         // 潜水艦の現在の向き
         float submarineRotation = DataManager.GetSubmarineRotation();
         // 敵船のスポーン角度をランダムに決定
-        float spawnAngleY = Random.Range(submarineRotation + 180f, submarineRotation + 270f);
+        float spawnAngleY = Random.Range(submarineRotation + enemyShipSpawnAngleMin, submarineRotation + enemyShipSpawnAngleMax);
         // 敵船の向き
         Quaternion spawnRotation = Quaternion.Euler(0f, spawnAngleY, 0f);
         // 敵船のスポーン距離
-        float spawnDistance = DataManager.GetEnemyShipRotateRadius() * 3f;
+        float spawnDistance = DataManager.GetEnemyShipRotateRadius() * enemyShipSpawnDistanceMagnification;
 
         // 敵船のスポーン方向
         Vector3 spawnDirection = Quaternion.Euler(0f, spawnAngleY, 0f) * Vector3.forward;

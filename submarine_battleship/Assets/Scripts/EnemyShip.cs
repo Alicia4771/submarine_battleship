@@ -8,7 +8,7 @@ public class EnemyShip : Ship
     private Vector3 centerPoint;
     private float radius;
     private float radius_random_factor = 0.05f;  // 半径のランダム変動の割合
-    [SerializeField] private float movementSpeed = 0.5f;
+    [SerializeField] private float movementSpeed = 0.2f;
     private float currentAngle = 0f;
 
     [Header("--- 光の暗号設定 ---")]
