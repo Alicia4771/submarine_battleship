@@ -14,6 +14,8 @@ public static class DataManager
 
     private static int score;                   // 現在のスコア
     private static List<string> enemy_ships_list = new();   // 敵艦のリスト
+
+    private static bool changeSceneConfirmation = true;    // シーンを変更する際の確認ダイアログを表示するか
     
     
 
@@ -239,5 +241,24 @@ public static class DataManager
         }
 
         return EnemyShipDistanceList;
+    }
+
+
+    /// <summary>
+    /// シーンを変更する際の確認ダイアログを表示するかどうかを返す
+    /// </summary>
+    /// <returns>bool</returns>
+    public static bool GetChangeSceneConfirmation()
+    {
+        return changeSceneConfirmation;
+    }
+
+    /// <summary>
+    /// シーンを変更する際の確認ダイアログを表示するかどうかを設定する
+    /// </summary>
+    /// <param name="isEnabled"></param>
+    public static void SetChangeSceneConfirmation(bool isEnabled)
+    {
+        changeSceneConfirmation = isEnabled;
     }
 }
