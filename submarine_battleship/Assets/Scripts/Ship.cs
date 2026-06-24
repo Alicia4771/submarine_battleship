@@ -46,4 +46,12 @@ public class Ship : MonoBehaviour
         this.rotateSpeed = rotateSpeed;
         return true;
     }
+
+    public bool SetRotate(float rotate)
+    {
+        if (rotate == null) return false;
+
+        this.transform.rotation = Quaternion.Euler(0f, rotate, 0f);
+        return true;
+    }
 }
