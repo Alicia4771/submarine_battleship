@@ -12,26 +12,58 @@ public class MenuPanelManager : MonoBehaviour
     private bool isAdministratorMenuOpen = false;
     private bool isSonarPanelOpen = false;
 
+    private static float gameTimeScale = 1f;
+    private static bool isAdministratorMenuOpenStatic = false;
+
     void Start()
     {
         SetAdministratorMenu(false);
         SetSonarPanel(false);
 
-        Time.timeScale = 1f;
+        Time.timeScale = gameTimeScale;
     }
 
     void Update()
     {
         if (Keyboard.current == null) return;
 
-        // Escキーで管理者メニューの開閉
         if (Keyboard.current.escapeKey.wasPressedThisFrame)
         {
             ToggleAdministratorMenu();
         }
 
-        // Spaceキーを押している間だけソナー表示
         UpdateSonarPanelBySpaceKey();
+    }
+
+    // Getter
+    public static float GetGameTimeScale()
+    {
+        return gameTimeScale;
+    }
+
+    // Setter
+    public static bool SetGameTimeScale(float value)
+    {
+        if (value < 0f)
+        {
+            Debug.LogError("TimeScaleには0以上の値を設定してください: " + value);
+            return false;
+        }
+
+        gameTimeScale = Mathf.Clamp(value, 0f, 100f);
+
+        // 管理者メニューが開いていないときだけ実際に反映
+        if (!isAdministratorMenuOpenStatic)
+        {
+            Time.timeScale = gameTimeScale;
+        }
+
+        return true;
+    }
+
+    public static bool GetIsAdministratorMenuOpen()
+    {
+        return isAdministratorMenuOpenStatic;
     }
 
     private void ToggleAdministratorMenu()
@@ -42,13 +74,15 @@ public class MenuPanelManager : MonoBehaviour
 
         if (isAdministratorMenuOpen)
         {
-            // 管理者画面を開いたら、ソナー画面は強制的に閉じる
             SetSonarPanel(false);
+
+            // 管理者メニュー中は一時停止
             Time.timeScale = 0f;
         }
         else
         {
-            Time.timeScale = 1f;
+            // 閉じたら設定済みのTimeScaleに戻す
+            Time.timeScale = gameTimeScale;
         }
     }
 
@@ -56,22 +90,21 @@ public class MenuPanelManager : MonoBehaviour
     {
         if (sonarPanel == null) return;
 
-        // 管理者メニューが開いている間は、Spaceを押していてもソナーを出さない
+        // 管理者メニューが開いている間はソナーを出さない
         if (isAdministratorMenuOpen)
         {
             SetSonarPanel(false);
             return;
         }
 
-        // Spaceキーを押している間だけtrue
         bool shouldShowSonar = Keyboard.current.spaceKey.isPressed;
-
         SetSonarPanel(shouldShowSonar);
     }
 
     private void SetAdministratorMenu(bool isOpen)
     {
         isAdministratorMenuOpen = isOpen;
+        isAdministratorMenuOpenStatic = isOpen;
 
         if (administratorMenuPanel != null)
         {
