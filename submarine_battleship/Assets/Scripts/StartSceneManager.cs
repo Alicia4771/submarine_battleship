@@ -4,7 +4,8 @@ using UnityEngine.SceneManagement;
 
 public class StartSceneManager : MonoBehaviour
 {
-    
+    [SerializeField, Tooltip("スタート文字のパネル")]
+    private GameObject startTextPanel;
     
     void Start()
     {
