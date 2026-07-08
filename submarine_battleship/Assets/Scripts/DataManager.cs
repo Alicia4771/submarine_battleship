@@ -12,6 +12,8 @@ public static class DataManager
 
     private static float enemyShip_rotate_radius = 50f;     // 敵艦の回転半径
 
+    private static float sensor_yaw = 0f;    // センサーのyaw角度
+
     private static int score;                   // 現在のスコア
     private static List<string> enemy_ships_list = new();   // 敵艦のリスト
 
@@ -242,6 +244,29 @@ public static class DataManager
 
         return EnemyShipDistanceList;
     }
+
+
+    /// <summary>
+    /// センサーのyaw角度を設定する
+    /// </summary>
+    /// <returns></returns>
+    public static float GetSensorYaw()
+    {
+        return sensor_yaw;
+    }
+
+    /// <summary>
+    /// センサーのyaw角度を設定する
+    /// </summary>
+    /// <param name="yaw"></param>
+    /// <returns></returns>
+    public static bool SetSensorYaw(float yaw)
+    {
+        sensor_yaw = yaw;
+        return true;
+    }
+
+
 
 
     /// <summary>

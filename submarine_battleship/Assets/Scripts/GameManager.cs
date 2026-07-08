@@ -35,6 +35,7 @@ public class GameManager : MonoBehaviour
     {
         time_count += Time.deltaTime;
         senseor_value = sensor.GetYaw(); // センサー値を取得
+        DataManager.SetSensorYaw(sensor.GetYaw());
 
         if (time_count_before < 3 &&time_count >= 3)
         {
@@ -48,7 +49,7 @@ public class GameManager : MonoBehaviour
         {
             SpawnEnemyShip();
         }
-        Debug.Log("sensor : " + senseor_value);
+        // Debug.Log("sensor : " + senseor_value);
 
         time_count_before = time_count;
     }
