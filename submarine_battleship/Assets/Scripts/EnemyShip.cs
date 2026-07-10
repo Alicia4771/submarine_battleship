@@ -11,38 +11,57 @@ public class EnemyShip : Ship
     [SerializeField] private float movementSpeed = 0.2f;
     private float currentAngle = 0f;
 
-    [SerializeField] private float modelRotationOffset = 90f; //船の向き修正
+    [SerializeField] private float modelRotationOffset = 90f; 
 
-    [Header("--- 光の暗号設定 ---")]
-    [SerializeField] private Light signalLight;
+    private Light signalLight; // 💡 Unity側での割り当てが不要になったため、SerializeFieldを削除
+    
+    private bool isDetected = false;
+    private GameObject shipVisual;
+
+    [Header("--- 潜望鏡の索敵設定 ---")]
+    [SerializeField] private float periscopeFOV = 45.0f; 
+    [SerializeField] private float maxDetectDistance = 50.0f; 
 
     protected override void Start()
     {
         base.Start();
 
+        if (transform.childCount > 0)
+        {
+            shipVisual = transform.GetChild(0).gameObject;
+        }
+
+        if (shipVisual != null)
+        {
+            shipVisual.SetActive(false);
+        }
+
         centerPoint = this.transform.position;
         
-        radius = DataManager.GetEnemyShipRotateRadius() + Random.Range(radius * radius_random_factor * (-1), radius * radius_random_factor);
-
         radius = DataManager.GetEnemyShipRotateRadius();
         radius += Random.Range(radius * radius_random_factor * (-1), radius * radius_random_factor);
         
         this.transform.position = centerPoint + new Vector3(radius, 0f, 0f);
 
-        if (signalLight == null) signalLight = GetComponentInChildren<Light>();
+        // 💡 【自動化】プログラムが自分でライトのオブジェクトを作成し、設定まで完了させる
+        CreateAutomaticLight();
 
         if (signalLight != null) StartCoroutine(FlashSignalRoutine());
 
-               GetComponent<Rigidbody>().interpolation = RigidbodyInterpolation.Interpolate;
+        GetComponent<Rigidbody>().interpolation = RigidbodyInterpolation.Interpolate;
     }
 
     protected override void Update()
     {
         base.Update();
         
-        System.Object centerPoint = this.centerPoint; 
-
         if (centerPoint == null) return;
+
+        if (!isDetected)
+        {
+            CheckSubmarineRadar();
+            return;
+        }
 
         CircleMove(movementSpeed);
     }
@@ -51,7 +70,62 @@ public class EnemyShip : Ship
     {
         base.FixedUpdate();
         
+        if (!isDetected)
+        {
+            GetComponent<Rigidbody>().linearVelocity = Vector3.zero;
+            return;
+        }
+        
         GetComponent<Rigidbody>().linearVelocity = transform.forward * movementSpeed;
+    }
+
+    private void CreateAutomaticLight()
+    {
+        // 1. 新しいゲームオブジェクトをプログラム上で作成
+        GameObject lightObj = new GameObject("AutoSignalLight");
+        
+        // 2. 敵船の子オブジェクトにして位置を固定する
+        lightObj.transform.SetParent(this.transform);
+        
+        // 3. 船の少し上（海の上）に電球の座標を設定する（Position Y = 3）
+        lightObj.transform.localPosition = new Vector3(0f, 3f, 0f);
+        
+        // 4. LightコンポーネントをくっつけてPoint Lightにする
+        signalLight = lightObj.AddComponent<Light>();
+        signalLight.type = LightType.Point;
+        
+        // 5. 明るさと範囲を自動で爆上げする
+        signalLight.intensity = 500f;
+        signalLight.range = 100f;
+        
+        // 6. 最初は消灯しておく
+        signalLight.enabled = false;
+    }
+
+    private void CheckSubmarineRadar()
+    {
+        Vector3 subPos3D = DataManager.GetSubmarinePosition();
+        Vector2 subPos = new Vector2(subPos3D.x, subPos3D.z);
+        Vector2 enemyPos = new Vector2(transform.position.x, transform.position.z);
+
+        Vector2 targetVector = enemyPos - subPos;
+        
+        if (targetVector.magnitude > maxDetectDistance) return;
+        Vector2 Tn = targetVector.normalized;
+
+        float thetaDeg = DataManager.GetSubmarineRotation();
+        float correctedThetaDeg = 90f - thetaDeg;
+        float thetaRad = correctedThetaDeg * Mathf.Deg2Rad;
+
+        Vector2 Rn = new Vector2(Mathf.Cos(thetaRad), Mathf.Sin(thetaRad)).normalized;
+
+        Vector2 D = Rn - Tn;
+        float allowedThreshold = 2f * Mathf.Sin((periscopeFOV / 2f) * Mathf.Deg2Rad);
+
+        if (D.magnitude <= allowedThreshold)
+        {
+            OnDetected();
+        }
     }
 
     private void CircleMove(float speed)
@@ -63,38 +137,54 @@ public class EnemyShip : Ship
         Vector3 nextPosition = centerPoint + new Vector3(x, 0f, z);
 
         Vector3 moveDirection = nextPosition - transform.position;
-        moveDirection.y = 0f; // 上下の傾き（お辞儀）をカットして水平にする
+        moveDirection.y = 0f; 
 
         if (moveDirection != Vector3.zero)
         {
-            // 1. まずはプログラム上の「正しい進む方向」を計算します
             Quaternion correctRotation = Quaternion.LookRotation(moveDirection.normalized);
-            
-            // 2. 正しい向きに対して、アセットのズレ分だけ回転を加える！
             transform.rotation = correctRotation * Quaternion.Euler(0f, modelRotationOffset, 0f);
         }
 
         transform.position = nextPosition;
     }
 
-    private IEnumerator FlashSignalRoutine()
+    public void OnDetected()
     {
-        while (true)
-        {
-            yield return StartCoroutine(PlayFlash(0.2f)); // トン
-            yield return StartCoroutine(PlayFlash(0.2f)); // トン
-            yield return StartCoroutine(PlayFlash(0.8f)); // ツー
-            yield return StartCoroutine(PlayFlash(0.2f)); // トン
+        if (isDetected) return;
 
-            yield return new WaitForSeconds(3.0f);
+        isDetected = true;
+
+        if (shipVisual != null)
+        {
+            shipVisual.SetActive(true);
         }
     }
 
-    private IEnumerator PlayFlash(float duration)
+    private IEnumerator FlashSignalRoutine()
     {
+        while (!isDetected)
+        {
+            yield return null; 
+        }
+
+        while (true)
+        {
+            yield return StartCoroutine(PlayFlash(0.15f, 0.15f)); 
+            yield return StartCoroutine(PlayFlash(0.15f, 0.15f)); 
+            yield return StartCoroutine(PlayFlash(0.65f, 0.15f)); 
+            yield return StartCoroutine(PlayFlash(0.15f, 1.5f)); 
+
+            yield return new WaitForSeconds(1.5f);
+        }
+    }
+
+    private IEnumerator PlayFlash(float duration, float blankTime)
+    {
+        if (signalLight == null) yield break;
+        
         signalLight.enabled = true;
         yield return new WaitForSeconds(duration);
         signalLight.enabled = false;
-        yield return new WaitForSeconds(0.3f);
+        yield return new WaitForSeconds(blankTime);
     }
 }

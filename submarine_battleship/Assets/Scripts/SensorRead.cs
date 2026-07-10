@@ -5,11 +5,15 @@ using System.Threading;
 public class SensorRead : MonoBehaviour
 {
     [Header("Serial Settings")]
-    // [SerializeField] private string portName = "/dev/cu.usbserial-1140";
+    // private string portName = "/dev/cu.usbserial-140";      // eluq's Mac
     private string portName = "/dev/cu.usbserial-120";      // rin's Mac
+    // private string portName = "/dev/cu.usbserial-1130";      // yuuya's Mac
     [SerializeField] private int baudRate = 115200;
 
+    private string sensor_value = "0,0,0";
     private float yaw = 0f;
+    private float speed = 0f;
+    private int encodet = 0;
 
     private SerialPort serial;
     private Thread readThread;
@@ -43,12 +47,16 @@ public class SensorRead : MonoBehaviour
         {
             try
             {
-                string line = serial.ReadLine();
-                if (float.TryParse(line, out float value))
+                sensor_value = serial.ReadLine();
+                
+                string[] values = sensor_value.Split(',');
+                if (values.Length >= 3 && float.TryParse(values[0], out float yawValue) && float.TryParse(values[1], out float speedValue) && int.TryParse(values[2], out int encodeValue))
                 {
                     lock (lockObj)
                     {
-                        yaw = value; // スレッドセーフに更新
+                        yaw = yawValue; // スレッドセーフに更新
+                        speed = speedValue; // スレッドセーフに更新
+                        encodet = encodeValue; // スレッドセーフに更新
                     }
                 }
             }
@@ -65,11 +73,12 @@ public class SensorRead : MonoBehaviour
 
     public float GetYaw()
     {
-        // メインスレッドで安全に読み取りたい場合
-        lock (lockObj)
-        {
-            return yaw;
-        }
+        return yaw;
+    }
+
+    public float GetSpeed()
+    {
+        return speed;
     }
 
     void OnDestroy()
