@@ -49,25 +49,26 @@
     <Analyzer Include="/Applications/Unity/Hub/Editor/6000.3.6f1/Unity.app/Contents/Resources/BuildPipeline/Unity.SourceGenerators/Unity.UIToolkit.SourceGenerator.dll" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Assets/Scripts/Ship.cs" />
     <Compile Include="Assets/Scripts/menu_panel/MenuPanelManager.cs" />
     <Compile Include="Assets/Scripts/menu_panel/AdministratorMenuManager.cs" />
     <Compile Include="Assets/Scripts/DataManager.cs" />
     <Compile Include="Assets/Scripts/Sonar.cs" />
     <Compile Include="Assets/Scripts/UnderwaterVolumeSwitcher.cs" />
+    <Compile Include="Assets/Scripts/start_scene/DelayedVideoLoop.cs" />
     <Compile Include="Assets/Scripts/SensorRead.cs" />
     <Compile Include="Assets/Scripts/MainCamera.cs" />
     <Compile Include="Assets/Scripts/ProconReceiver.cs" />
     <Compile Include="Assets/Scripts/TutorialSceneManager.cs" />
+    <Compile Include="Assets/Scripts/ship/Ship.cs" />
     <Compile Include="Assets/TutorialInfo/Scripts/Readme.cs" />
-    <Compile Include="Assets/Scripts/EnemyShip.cs" />
+    <Compile Include="Assets/Scripts/ship/EnemyShip.cs" />
     <Compile Include="Assets/Scripts/GameSettingPanel.cs" />
     <Compile Include="Assets/Scripts/UnderwaterEnvironmentSwitcher.cs" />
     <Compile Include="Assets/Scripts/menu_panel/SceneSettingPanel.cs" />
+    <Compile Include="Assets/Scripts/start_scene/StartSceneManager.cs" />
     <Compile Include="Assets/Scripts/menu_panel/TimeScaleSettingPanel.cs" />
-    <Compile Include="Assets/Scripts/StartSceneManager.cs" />
     <Compile Include="Assets/Scripts/GameManager.cs" />
-    <Compile Include="Assets/Scripts/Submarine.cs" />
+    <Compile Include="Assets/Scripts/ship/Submarine.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets/TextMesh Pro/Shaders/TMPro.cginc" />
