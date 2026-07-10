@@ -93,10 +93,12 @@ public class EnemyShip : Ship
         // 4. LightコンポーネントをくっつけてPoint Lightにする
         signalLight = lightObj.AddComponent<Light>();
         signalLight.type = LightType.Point;
+
+        signalLight.color = Color.red; // 赤色に設定
         
         // 5. 明るさと範囲を自動で爆上げする
-        signalLight.intensity = 500f;
-        signalLight.range = 100f;
+        signalLight.intensity = 1500f;
+        signalLight.range = 150f;
         
         // 6. 最初は消灯しておく
         signalLight.enabled = false;

@@ -1,6 +1,5 @@
 using UnityEngine;
 using System.Collections.Generic;
-using UnityEngine.SocialPlatforms.Impl;
 
 public static class DataManager
 {
@@ -18,6 +17,8 @@ public static class DataManager
     private static List<string> enemy_ships_list = new();   // 敵艦のリスト
 
     private static bool changeSceneConfirmation = true;    // シーンを変更する際の確認ダイアログを表示するか
+
+    private static bool sonar_panel_underwater_canopen = false;    // ソナー パネルが水中で開けるかどうか   
     
     
 
@@ -285,5 +286,17 @@ public static class DataManager
     public static void SetChangeSceneConfirmation(bool isEnabled)
     {
         changeSceneConfirmation = isEnabled;
+    }
+
+
+
+    public static bool GetSonarPanelUnderwaterCanOpen()
+    {
+        return sonar_panel_underwater_canopen;
+    }
+
+    public static void SetSonarPanelUnderwaterCanOpen(bool canOpen)
+    {
+        sonar_panel_underwater_canopen = canOpen;
     }
 }

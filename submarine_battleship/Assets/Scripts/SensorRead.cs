@@ -10,10 +10,11 @@ public class SensorRead : MonoBehaviour
     // private string portName = "/dev/cu.usbserial-1130";      // yuuya's Mac
     [SerializeField] private int baudRate = 115200;
 
-    private string sensor_value = "0,0,0";
+    private string sensor_value = "0,0,0,0";
     private float yaw = 0f;
     private float speed = 0f;
-    private int encodet = 0;
+    private int encode = 0;
+    private int tactile_switch = 0; 
 
     private SerialPort serial;
     private Thread readThread;
@@ -50,13 +51,14 @@ public class SensorRead : MonoBehaviour
                 sensor_value = serial.ReadLine();
                 
                 string[] values = sensor_value.Split(',');
-                if (values.Length >= 3 && float.TryParse(values[0], out float yawValue) && float.TryParse(values[1], out float speedValue) && int.TryParse(values[2], out int encodeValue))
+                if (values.Length >= 4 && float.TryParse(values[0], out float yawValue) && float.TryParse(values[1], out float speedValue) && int.TryParse(values[2], out int encodeValue) && int.TryParse(values[3], out int tactileValue))
                 {
                     lock (lockObj)
                     {
                         yaw = yawValue; // スレッドセーフに更新
                         speed = speedValue; // スレッドセーフに更新
-                        encodet = encodeValue; // スレッドセーフに更新
+                        encode = encodeValue; // スレッドセーフに更新
+                        tactile_switch = tactileValue; // スレッドセーフに更新
                     }
                 }
             }
@@ -79,6 +81,16 @@ public class SensorRead : MonoBehaviour
     public float GetSpeed()
     {
         return speed;
+    }
+
+    public int GetEncode()
+    {
+        return encode;
+    }
+
+    public int GetTactileSwitch()
+    {
+        return tactile_switch;
     }
 
     void OnDestroy()
