@@ -25,109 +25,114 @@ public class TutorialSceneManager : MonoBehaviour
         Completed
     }
 
+    // =========================================================
+    // Inspector設定
+    // =========================================================
 
     [Header("センサ")]
-
-    [SerializeField, Tooltip(
-        "シリアル通信を行うSensorRead")]
+    [SerializeField, Tooltip("シリアル通信を行うSensorRead")]
     private SensorRead sensorRead;
 
 
     [Header("会話UI")]
-
     [SerializeField, Tooltip("会話パネル全体")]
     private GameObject conversationPanel;
 
-    [SerializeField, Tooltip(
-        "司令官の画像を表示するImage")]
+    [SerializeField, Tooltip("司令官の画像を表示するImage")]
     private Image speakerPortraitImage;
 
     [SerializeField, Tooltip("司令官の画像")]
     private Sprite commanderPortrait;
 
-    [SerializeField, Tooltip(
-        "話者名を表示するTextMeshPro")]
+    [SerializeField, Tooltip("話者名を表示するTextMeshPro")]
     private TMP_Text speakerNameText;
 
-    [SerializeField, Tooltip(
-        "セリフを表示するTextMeshPro")]
+    [SerializeField, Tooltip("セリフを表示するTextMeshPro")]
     private TMP_Text dialogueText;
 
 
-    [Header("文字送り")]
+    [Header("次のセリフ表示")]
+    [SerializeField, Tooltip("次へ進めるときに表示する下向き三角形")]
+    private GameObject nextDialogueIndicator;
 
-    [SerializeField, Tooltip(
-        "1文字を表示する間隔")]
+    [SerializeField, Tooltip("三角形の透明度を制御するCanvasGroup")]
+    private CanvasGroup nextDialogueIndicatorCanvasGroup;
+
+    [SerializeField, Tooltip("三角形が1秒間に点滅する回数")]
+    [Min(0.1f)]
+    private float nextIndicatorBlinkSpeed = 1.5f;
+
+    [SerializeField, Tooltip("点滅時の最小透明度")]
+    [Range(0f, 1f)]
+    private float nextIndicatorMinimumAlpha = 0.2f;
+
+
+    [Header("ミッションUI")]
+    [SerializeField, Tooltip("操作指示を表示するパネル")]
+    private GameObject missionPanel;
+
+    [SerializeField, Tooltip("操作指示を表示するTextMeshPro")]
+    private TMP_Text missionText;
+
+
+    [Header("文字送り")]
+    [SerializeField, Tooltip("1文字を表示する間隔")]
     [Min(0.001f)]
     private float characterInterval = 0.04f;
 
 
     [Header("潜望鏡")]
-
-    [SerializeField, Tooltip(
-        "潜望鏡の親オブジェクト")]
+    [SerializeField, Tooltip("潜望鏡の親オブジェクト")]
     private Transform periscopeTransform;
 
-    [SerializeField, Tooltip(
-        "このY座標以下で水中と判定")]
+    [SerializeField, Tooltip("このY座標以下で水中と判定")]
     private float underwaterYThreshold = -0.1f;
 
-    [SerializeField, Tooltip(
-        "このY座標以上で海上と判定")]
+    [SerializeField, Tooltip("このY座標以上で海上と判定")]
     private float raisedYThreshold = 0.1f;
 
-    [SerializeField, Tooltip(
-        "潜望鏡を沈めるencode値")]
+    [SerializeField, Tooltip("潜望鏡を沈めるencode値")]
     private int encoderValueForLowering = -1;
 
-    [SerializeField, Tooltip(
-        "潜望鏡を上げるencode値")]
+    [SerializeField, Tooltip("潜望鏡を上げるencode値")]
     private int encoderValueForRaising = 1;
 
 
     [Header("回転操作")]
-
-    [SerializeField, Tooltip(
-        "回転操作成功とする合計角度")]
+    [SerializeField, Tooltip("回転操作成功とする合計角度")]
     [Min(1f)]
     private float requiredRotationDegrees = 30f;
 
-    [SerializeField, Tooltip(
-        "1回でこれ以上変化したヨー角は異常値として無視")]
+    [SerializeField, Tooltip("1回でこれ以上変化したヨー角は異常値として無視")]
     [Range(10f, 180f)]
     private float maxAcceptedYawDelta = 90f;
 
 
     [Header("ソナー")]
-
-    [SerializeField, Tooltip(
-        "チュートリアル用ソナー管理スクリプト")]
-    private TutorialSceneMenuPanelManager
-        menuPanelManager;
+    [SerializeField, Tooltip("チュートリアル用ソナー管理スクリプト")]
+    private TutorialSceneMenuPanelManager menuPanelManager;
 
 
     [Header("敵船")]
-
-    [SerializeField, Tooltip(
-        "チュートリアル用の敵船")]
+    [SerializeField, Tooltip("チュートリアル用の敵船")]
     private TutorialEnemyShip tutorialEnemyShip;
 
 
     [Header("シーン")]
-
     [SerializeField]
     private string mainSceneName = "MainScene";
 
 
     [Header("デバッグ")]
-
-    [SerializeField, Tooltip(
-        "F2キーで現在の操作を成功扱いにする")]
+    [SerializeField, Tooltip("F2キーで現在の操作を成功扱いにする")]
     private bool allowDebugStepComplete = true;
 
 
-    private TutorialState currentState =
-        TutorialState.None;
+    // =========================================================
+    // 内部変数
+    // =========================================================
+
+    private TutorialState currentState = TutorialState.None;
 
     private string[] currentDialogueLines;
     private int currentDialogueIndex;
@@ -173,6 +178,7 @@ public class TutorialSceneManager : MonoBehaviour
         "今回は、敵船を発見し、通信を傍受するところまでを訓練する。"
     };
 
+
     private readonly string[] rotationInstructionDialogue =
     {
         "まずは、潜望鏡の基本操作を確認する。",
@@ -186,6 +192,7 @@ public class TutorialSceneManager : MonoBehaviour
         "潜望鏡をゆっくり左右に回してみてくれ。"
     };
 
+
     private readonly string[] loweringInstructionDialogue =
     {
         "よし。潜望鏡の回転を確認した。",
@@ -198,6 +205,7 @@ public class TutorialSceneManager : MonoBehaviour
 
         "つまみを右に回し、潜望鏡を水中へ沈めてくれ。"
     };
+
 
     private readonly string[] sonarOpenInstructionDialogue =
     {
@@ -214,6 +222,7 @@ public class TutorialSceneManager : MonoBehaviour
         "ボタンを押し続けて、周囲を確認してくれ。"
     };
 
+
     private readonly string[] sonarFinishedDialogue =
     {
         "ソナーの起動を確認した。",
@@ -229,6 +238,7 @@ public class TutorialSceneManager : MonoBehaviour
         "つまみを左に回し、潜望鏡を上昇させてくれ。"
     };
 
+
     private readonly string[] enemySearchInstructionDialogue =
     {
         "潜望鏡が海上へ出た。",
@@ -242,6 +252,7 @@ public class TutorialSceneManager : MonoBehaviour
         "船体の形をよく見て、敵船を視界に捉えるんだ。"
     };
 
+
     private readonly string[] enemyFoundDialogue =
     {
         "敵船を確認した。",
@@ -252,6 +263,7 @@ public class TutorialSceneManager : MonoBehaviour
 
         "光の点灯と消灯の順番をよく観察しろ。"
     };
+
 
     private readonly string[] tutorialCompleteDialogue =
     {
@@ -293,6 +305,7 @@ public class TutorialSceneManager : MonoBehaviour
         DataManager.Initialize();
     }
 
+
     private void Start()
     {
         FindReferences();
@@ -300,17 +313,13 @@ public class TutorialSceneManager : MonoBehaviour
 
         if (menuPanelManager != null)
         {
-            menuPanelManager
-                .SetSonarInputEnabled(false);
-
-            menuPanelManager
-                .CloseSonarPanel();
+            menuPanelManager.SetSonarInputEnabled(false);
+            menuPanelManager.CloseSonarPanel();
         }
 
         if (tutorialEnemyShip != null)
         {
-            tutorialEnemyShip
-                .SetDetectionEnabled(false);
+            tutorialEnemyShip.SetDetectionEnabled(false);
         }
 
         if (sensorRead != null)
@@ -331,10 +340,14 @@ public class TutorialSceneManager : MonoBehaviour
         );
     }
 
+
     private void Update()
     {
         UpdateSensorData();
         UpdatePeriscopeData();
+
+        // 下向き三角形を点滅させる
+        UpdateNextDialogueIndicatorBlink();
 
         if (isChangingScene)
         {
@@ -343,8 +356,7 @@ public class TutorialSceneManager : MonoBehaviour
 
         if (allowDebugStepComplete &&
             Keyboard.current != null &&
-            Keyboard.current.f2Key
-                .wasPressedThisFrame)
+            Keyboard.current.f2Key.wasPressedThisFrame)
         {
             DebugCompleteCurrentStep();
             return;
@@ -364,30 +376,36 @@ public class TutorialSceneManager : MonoBehaviour
 
                 break;
 
+
             case TutorialState.WaitForRotation:
 
                 CheckPeriscopeRotation();
                 break;
+
 
             case TutorialState.WaitForLowering:
 
                 CheckPeriscopeLowering();
                 break;
 
+
             case TutorialState.WaitForSonarOpen:
 
                 CheckSonarOpened();
                 break;
+
 
             case TutorialState.WaitForSonarClose:
 
                 CheckSonarClosed();
                 break;
 
+
             case TutorialState.WaitForRaising:
 
                 CheckPeriscopeRaising();
                 break;
+
 
             case TutorialState.WaitForMissionStart:
 
@@ -400,6 +418,7 @@ public class TutorialSceneManager : MonoBehaviour
         }
     }
 
+
     private void OnDisable()
     {
         if (typingCoroutine != null)
@@ -408,19 +427,18 @@ public class TutorialSceneManager : MonoBehaviour
             typingCoroutine = null;
         }
 
+        SetNextDialogueIndicatorVisible(false);
+        HideMission();
+
         if (menuPanelManager != null)
         {
-            menuPanelManager
-                .SetSonarInputEnabled(false);
-
-            menuPanelManager
-                .CloseSonarPanel();
+            menuPanelManager.SetSonarInputEnabled(false);
+            menuPanelManager.CloseSonarPanel();
         }
 
         if (tutorialEnemyShip != null)
         {
-            tutorialEnemyShip
-                .SetDetectionEnabled(false);
+            tutorialEnemyShip.SetDetectionEnabled(false);
         }
     }
 
@@ -453,16 +471,19 @@ public class TutorialSceneManager : MonoBehaviour
         {
             menuPanelManager =
                 FindFirstObjectByType<
-                    TutorialSceneMenuPanelManager>();
+                    TutorialSceneMenuPanelManager
+                >();
         }
 
         if (tutorialEnemyShip == null)
         {
             tutorialEnemyShip =
                 FindFirstObjectByType<
-                    TutorialEnemyShip>();
+                    TutorialEnemyShip
+                >();
         }
     }
+
 
     private void SetupConversationUI()
     {
@@ -491,7 +512,18 @@ public class TutorialSceneManager : MonoBehaviour
             speakerPortraitImage.enabled =
                 speakerPortraitImage.sprite != null;
         }
+
+        if (nextDialogueIndicator != null &&
+            nextDialogueIndicatorCanvasGroup == null)
+        {
+            nextDialogueIndicatorCanvasGroup =
+                nextDialogueIndicator.GetComponent<CanvasGroup>();
+        }
+
+        SetNextDialogueIndicatorVisible(false);
+        HideMission();
     }
+
 
     private void UpdateSensorData()
     {
@@ -504,6 +536,7 @@ public class TutorialSceneManager : MonoBehaviour
             sensorRead.GetYaw()
         );
     }
+
 
     private void UpdatePeriscopeData()
     {
@@ -519,6 +552,114 @@ public class TutorialSceneManager : MonoBehaviour
         DataManager.SetSubmarineRotation(
             periscopeTransform.eulerAngles.y
         );
+    }
+
+
+    // =========================================================
+    // 次のセリフ表示
+    // =========================================================
+
+    private void SetNextDialogueIndicatorVisible(
+        bool visible)
+    {
+        if (nextDialogueIndicator != null)
+        {
+            nextDialogueIndicator.SetActive(
+                visible
+            );
+        }
+
+        if (nextDialogueIndicatorCanvasGroup != null)
+        {
+            nextDialogueIndicatorCanvasGroup.alpha =
+                1f;
+        }
+    }
+
+
+    private void UpdateNextDialogueIndicatorBlink()
+    {
+        if (nextDialogueIndicator == null ||
+            !nextDialogueIndicator.activeSelf ||
+            nextDialogueIndicatorCanvasGroup == null)
+        {
+            return;
+        }
+
+        float blinkValue =
+            (
+                Mathf.Sin(
+                    Time.unscaledTime *
+                    nextIndicatorBlinkSpeed *
+                    Mathf.PI *
+                    2f
+                ) + 1f
+            ) * 0.5f;
+
+        nextDialogueIndicatorCanvasGroup.alpha =
+            Mathf.Lerp(
+                nextIndicatorMinimumAlpha,
+                1f,
+                blinkValue
+            );
+    }
+
+
+    // =========================================================
+    // ミッション表示
+    // =========================================================
+
+    private void ShowMission(
+        int missionNumber,
+        string instruction)
+    {
+        SetNextDialogueIndicatorVisible(false);
+
+        if (missionPanel != null)
+        {
+            missionPanel.SetActive(true);
+        }
+
+        if (missionText != null)
+        {
+            missionText.text =
+                $"MISSION {GetCircledMissionNumber(missionNumber)}：{instruction}";
+        }
+    }
+
+
+    private void HideMission()
+    {
+        if (missionPanel != null)
+        {
+            missionPanel.SetActive(false);
+        }
+
+        if (missionText != null)
+        {
+            missionText.text =
+                string.Empty;
+        }
+    }
+
+
+    private string GetCircledMissionNumber(
+        int missionNumber)
+    {
+        return missionNumber switch
+        {
+            1 => "①",
+            2 => "②",
+            3 => "③",
+            4 => "④",
+            5 => "⑤",
+            6 => "⑥",
+            7 => "⑦",
+            8 => "⑧",
+            9 => "⑨",
+            10 => "⑩",
+            _ => missionNumber.ToString()
+        };
     }
 
 
@@ -574,6 +715,9 @@ public class TutorialSceneManager : MonoBehaviour
         string[] lines,
         Action finishedAction)
     {
+        HideMission();
+        SetNextDialogueIndicatorVisible(false);
+
         if (dialogueText == null)
         {
             Debug.LogError(
@@ -590,9 +734,14 @@ public class TutorialSceneManager : MonoBehaviour
             return;
         }
 
-        currentDialogueLines = lines;
-        currentDialogueIndex = 0;
-        onDialogueFinished = finishedAction;
+        currentDialogueLines =
+            lines;
+
+        currentDialogueIndex =
+            0;
+
+        onDialogueFinished =
+            finishedAction;
 
         currentState =
             TutorialState.Dialogue;
@@ -604,6 +753,7 @@ public class TutorialSceneManager : MonoBehaviour
         );
     }
 
+
     private void HandleDialogueAdvance()
     {
         if (isTyping)
@@ -611,6 +761,8 @@ public class TutorialSceneManager : MonoBehaviour
             ShowAllCharacters();
             return;
         }
+
+        SetNextDialogueIndicatorVisible(false);
 
         currentDialogueIndex++;
 
@@ -629,8 +781,11 @@ public class TutorialSceneManager : MonoBehaviour
         Action finishedAction =
             onDialogueFinished;
 
-        currentDialogueLines = null;
-        onDialogueFinished = null;
+        currentDialogueLines =
+            null;
+
+        onDialogueFinished =
+            null;
 
         currentState =
             TutorialState.None;
@@ -638,9 +793,12 @@ public class TutorialSceneManager : MonoBehaviour
         finishedAction?.Invoke();
     }
 
+
     private void ShowDialogueLine(
         string line)
     {
+        SetNextDialogueIndicatorVisible(false);
+
         if (typingCoroutine != null)
         {
             StopCoroutine(
@@ -654,13 +812,19 @@ public class TutorialSceneManager : MonoBehaviour
             );
     }
 
+
     private IEnumerator TypeDialogue(
         string line)
     {
         isTyping = true;
 
-        dialogueText.text = line;
-        dialogueText.maxVisibleCharacters = 0;
+        SetNextDialogueIndicatorVisible(false);
+
+        dialogueText.text =
+            line;
+
+        dialogueText.maxVisibleCharacters =
+            0;
 
         dialogueText.ForceMeshUpdate();
 
@@ -669,8 +833,7 @@ public class TutorialSceneManager : MonoBehaviour
                 .characterCount;
 
         for (int visibleCharacters = 0;
-             visibleCharacters <=
-             totalCharacterCount;
+             visibleCharacters <= totalCharacterCount;
              visibleCharacters++)
         {
             dialogueText.maxVisibleCharacters =
@@ -686,9 +849,16 @@ public class TutorialSceneManager : MonoBehaviour
             }
         }
 
-        isTyping = false;
-        typingCoroutine = null;
+        isTyping =
+            false;
+
+        typingCoroutine =
+            null;
+
+        // 全文表示後に三角形を表示
+        SetNextDialogueIndicatorVisible(true);
     }
+
 
     private void ShowAllCharacters()
     {
@@ -698,14 +868,19 @@ public class TutorialSceneManager : MonoBehaviour
                 typingCoroutine
             );
 
-            typingCoroutine = null;
+            typingCoroutine =
+                null;
         }
 
         dialogueText.maxVisibleCharacters =
             totalCharacterCount;
 
-        isTyping = false;
+        isTyping =
+            false;
+
+        SetNextDialogueIndicatorVisible(true);
     }
+
 
     private void ShowInstructionText(
         string text)
@@ -716,15 +891,20 @@ public class TutorialSceneManager : MonoBehaviour
                 typingCoroutine
             );
 
-            typingCoroutine = null;
+            typingCoroutine =
+                null;
         }
 
-        dialogueText.text = text;
+        dialogueText.text =
+            text;
 
         dialogueText.maxVisibleCharacters =
             int.MaxValue;
 
-        isTyping = false;
+        isTyping =
+            false;
+
+        SetNextDialogueIndicatorVisible(false);
     }
 
 
@@ -740,12 +920,19 @@ public class TutorialSceneManager : MonoBehaviour
         );
     }
 
+
     private void BeginWaitForRotation()
     {
         currentState =
             TutorialState.WaitForRotation;
 
-        accumulatedRotation = 0f;
+        ShowMission(
+            1,
+            "潜望鏡をゆっくり左右に回せ"
+        );
+
+        accumulatedRotation =
+            0f;
 
         if (sensorRead != null)
         {
@@ -758,6 +945,7 @@ public class TutorialSceneManager : MonoBehaviour
                 periscopeTransform.eulerAngles.y;
         }
     }
+
 
     private void CheckPeriscopeRotation()
     {
@@ -789,10 +977,12 @@ public class TutorialSceneManager : MonoBehaviour
         if (delta <=
             maxAcceptedYawDelta)
         {
-            accumulatedRotation += delta;
+            accumulatedRotation +=
+                delta;
         }
 
-        lastYaw = currentYaw;
+        lastYaw =
+            currentYaw;
 
         if (accumulatedRotation >=
             requiredRotationDegrees)
@@ -800,6 +990,7 @@ public class TutorialSceneManager : MonoBehaviour
             CompleteRotationStep();
         }
     }
+
 
     private void CompleteRotationStep()
     {
@@ -818,11 +1009,18 @@ public class TutorialSceneManager : MonoBehaviour
     {
         currentState =
             TutorialState.WaitForLowering;
+
+        ShowMission(
+            2,
+            "つまみを右に回して潜望鏡を水中へ沈めろ"
+        );
     }
+
 
     private void CheckPeriscopeLowering()
     {
-        bool completed = false;
+        bool completed =
+            false;
 
         if (periscopeTransform != null)
         {
@@ -843,6 +1041,7 @@ public class TutorialSceneManager : MonoBehaviour
         }
     }
 
+
     private void CompleteLoweringStep()
     {
         PlayDialogueBlock(
@@ -861,18 +1060,23 @@ public class TutorialSceneManager : MonoBehaviour
         currentState =
             TutorialState.WaitForSonarOpen;
 
+        ShowMission(
+            3,
+            "スイッチを押し続けてソナーを表示せよ"
+        );
+
         waitingForSonarButtonRelease =
             sensorRead != null &&
             sensorRead.GetTactileSwitch() == 1;
 
         if (menuPanelManager != null)
         {
-            menuPanelManager
-                .SetSonarInputEnabled(
-                    !waitingForSonarButtonRelease
-                );
+            menuPanelManager.SetSonarInputEnabled(
+                !waitingForSonarButtonRelease
+            );
         }
     }
+
 
     private void CheckSonarOpened()
     {
@@ -897,15 +1101,15 @@ public class TutorialSceneManager : MonoBehaviour
                 waitingForSonarButtonRelease =
                     false;
 
-                menuPanelManager
-                    .SetSonarInputEnabled(true);
+                menuPanelManager.SetSonarInputEnabled(
+                    true
+                );
             }
 
             return;
         }
 
-        if (!menuPanelManager
-            .GetIsSonarPanelOpen())
+        if (!menuPanelManager.GetIsSonarPanelOpen())
         {
             return;
         }
@@ -913,12 +1117,17 @@ public class TutorialSceneManager : MonoBehaviour
         currentState =
             TutorialState.WaitForSonarClose;
 
+        ShowMission(
+            4,
+            "周囲を確認し、スイッチから指を離せ"
+        );
+
         ShowInstructionText(
             "ソナーの起動を確認した。\n" +
-            "周囲にいる船のおおよその位置が表示されている。\n" +
-            "確認したら、ボタンから指を離してくれ。"
+            "周囲にいる船のおおよその位置が表示されている。"
         );
     }
+
 
     private void CheckSonarClosed()
     {
@@ -927,8 +1136,7 @@ public class TutorialSceneManager : MonoBehaviour
             return;
         }
 
-        if (menuPanelManager
-            .GetIsSonarPanelOpen())
+        if (menuPanelManager.GetIsSonarPanelOpen())
         {
             return;
         }
@@ -936,15 +1144,13 @@ public class TutorialSceneManager : MonoBehaviour
         CompleteSonarStep();
     }
 
+
     private void CompleteSonarStep()
     {
         if (menuPanelManager != null)
         {
-            menuPanelManager
-                .SetSonarInputEnabled(false);
-
-            menuPanelManager
-                .CloseSonarPanel();
+            menuPanelManager.SetSonarInputEnabled(false);
+            menuPanelManager.CloseSonarPanel();
         }
 
         PlayDialogueBlock(
@@ -962,11 +1168,18 @@ public class TutorialSceneManager : MonoBehaviour
     {
         currentState =
             TutorialState.WaitForRaising;
+
+        ShowMission(
+            5,
+            "つまみを左に回して潜望鏡を海上へ上げろ"
+        );
     }
+
 
     private void CheckPeriscopeRaising()
     {
-        bool completed = false;
+        bool completed =
+            false;
 
         if (periscopeTransform != null)
         {
@@ -987,6 +1200,7 @@ public class TutorialSceneManager : MonoBehaviour
         }
     }
 
+
     private void CompleteRaisingStep()
     {
         PlayDialogueBlock(
@@ -1005,12 +1219,19 @@ public class TutorialSceneManager : MonoBehaviour
         currentState =
             TutorialState.WaitForEnemyFound;
 
+        ShowMission(
+            6,
+            "潜望鏡を回して敵船を発見せよ"
+        );
+
         if (tutorialEnemyShip != null)
         {
-            tutorialEnemyShip
-                .SetDetectionEnabled(true);
+            tutorialEnemyShip.SetDetectionEnabled(
+                true
+            );
         }
     }
+
 
     public void NotifyEnemyFound()
     {
@@ -1022,8 +1243,9 @@ public class TutorialSceneManager : MonoBehaviour
 
         if (tutorialEnemyShip != null)
         {
-            tutorialEnemyShip
-                .SetDetectionEnabled(false);
+            tutorialEnemyShip.SetDetectionEnabled(
+                false
+            );
         }
 
         PlayDialogueBlock(
@@ -1042,6 +1264,11 @@ public class TutorialSceneManager : MonoBehaviour
         currentState =
             TutorialState.WaitForSignalFinished;
 
+        ShowMission(
+            7,
+            "敵船の光信号を観察し、順番を記憶せよ"
+        );
+
         if (tutorialEnemyShip != null)
         {
             tutorialEnemyShip.StartSignal();
@@ -1053,6 +1280,7 @@ public class TutorialSceneManager : MonoBehaviour
             );
         }
     }
+
 
     public void NotifyEnemySignalFinished()
     {
@@ -1078,10 +1306,16 @@ public class TutorialSceneManager : MonoBehaviour
         currentState =
             TutorialState.WaitForMissionStart;
 
+        ShowMission(
+            8,
+            "スイッチを押して偵察任務を開始せよ"
+        );
+
         ShowInstructionText(
-            "タクトスイッチを押して、偵察任務を開始してください。"
+            "準備ができたら、スイッチを押してください。"
         );
     }
+
 
     private void ChangeToMainScene()
     {
@@ -1090,7 +1324,11 @@ public class TutorialSceneManager : MonoBehaviour
             return;
         }
 
-        isChangingScene = true;
+        isChangingScene =
+            true;
+
+        SetNextDialogueIndicatorVisible(false);
+        HideMission();
 
         currentState =
             TutorialState.Completed;
@@ -1182,8 +1420,7 @@ public class TutorialSceneManager : MonoBehaviour
 
                 if (tutorialEnemyShip != null)
                 {
-                    tutorialEnemyShip
-                        .ForceDetectForDebug();
+                    tutorialEnemyShip.ForceDetectForDebug();
                 }
                 else
                 {
@@ -1201,8 +1438,7 @@ public class TutorialSceneManager : MonoBehaviour
 
                 if (tutorialEnemyShip != null)
                 {
-                    tutorialEnemyShip
-                        .ForceFinishSignalForDebug();
+                    tutorialEnemyShip.ForceFinishSignalForDebug();
                 }
                 else
                 {
@@ -1223,6 +1459,7 @@ public class TutorialSceneManager : MonoBehaviour
         }
     }
 
+
     private void SetPeriscopeYForDebug(
         float newY)
     {
@@ -1234,11 +1471,11 @@ public class TutorialSceneManager : MonoBehaviour
         Vector3 newPosition =
             periscopeTransform.position;
 
-        newPosition.y = newY;
+        newPosition.y =
+            newY;
 
         Rigidbody periscopeRigidbody =
-            periscopeTransform
-                .GetComponent<Rigidbody>();
+            periscopeTransform.GetComponent<Rigidbody>();
 
         if (periscopeRigidbody != null)
         {
