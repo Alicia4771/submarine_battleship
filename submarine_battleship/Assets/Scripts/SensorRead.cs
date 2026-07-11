@@ -6,7 +6,7 @@ public class SensorRead : MonoBehaviour
 {
     [Header("Serial Settings")]
     // private string portName = "/dev/cu.usbserial-140";      // eluq's Mac
-    private string portName = "/dev/cu.usbserial-120";      // rin's Mac
+    private string portName = "/dev/cu.usbserial-130";      // rin's Mac
     // private string portName = "/dev/cu.usbserial-1130";      // yuuya's Mac
     [SerializeField] private int baudRate = 115200;
 

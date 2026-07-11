@@ -196,7 +196,7 @@ public class TutorialSceneManager : MonoBehaviour
 
         "次は、潜望鏡の高さを変更する。",
 
-        "ロータリーエンコーダーを右に回し、潜望鏡を水中へ沈めてくれ。"
+        "つまみを右に回し、潜望鏡を水中へ沈めてくれ。"
     };
 
     private readonly string[] sonarOpenInstructionDialogue =
@@ -209,7 +209,7 @@ public class TutorialSceneManager : MonoBehaviour
 
         "ソナーには、周囲にいる船のおおよその位置が表示される。",
 
-        "タクトスイッチを押している間、ソナー画面が表示される。",
+        "スイッチを押している間、ソナー画面が表示される。",
 
         "ボタンを押し続けて、周囲を確認してくれ。"
     };
@@ -226,7 +226,7 @@ public class TutorialSceneManager : MonoBehaviour
 
         "続いて、潜望鏡を海上へ戻す。",
 
-        "ロータリーエンコーダーを左に回し、潜望鏡を上昇させてくれ。"
+        "つまみを左に回し、潜望鏡を上昇させてくれ。"
     };
 
     private readonly string[] enemySearchInstructionDialogue =

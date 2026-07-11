@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
@@ -52,6 +53,13 @@ public class GameManager : MonoBehaviour
         // Debug.Log("sensor : " + senseor_value);
 
         time_count_before = time_count;
+
+        if (time_count >= time_limit)
+        {
+            // ゲーム終了処理
+            Debug.Log("Time's up! Game Over.");
+            SceneManager.LoadScene("ResultScene");
+        }
     }
 
 
