@@ -61,7 +61,9 @@
     <Compile Include="Assets/Scripts/start_scene/DelayedVideoLoop.cs" />
     <Compile Include="Assets/Scripts/SensorRead.cs" />
     <Compile Include="Assets/Scripts/CommunicationMissionManager.cs" />
+    <Compile Include="Assets/Scripts/ExposureRiskManager.cs" />
     <Compile Include="Assets/Scripts/MainCamera.cs" />
+    <Compile Include="Assets/Scripts/CommunicationMastController.cs" />
     <Compile Include="Assets/Scripts/ProconReceiver.cs" />
     <Compile Include="Assets/Scripts/TutorialSceneManager.cs" />
     <Compile Include="Assets/Scripts/ship/Ship.cs" />
@@ -76,6 +78,7 @@
     <Compile Include="Assets/Scripts/start_scene/StartSceneManager.cs" />
     <Compile Include="Assets/Scripts/menu_panel/TimeScaleSettingPanel.cs" />
     <Compile Include="Assets/Scripts/GameManager.cs" />
+    <Compile Include="Assets/Scripts/SurfaceContactType.cs" />
     <Compile Include="Assets/Scripts/ship/Submarine.cs" />
   </ItemGroup>
   <ItemGroup>
