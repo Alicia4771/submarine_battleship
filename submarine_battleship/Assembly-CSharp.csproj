@@ -43,7 +43,7 @@
     <UnityVersion>6000.3.6f1</UnityVersion>
   </PropertyGroup>
   <ItemGroup>
-    <Analyzer Include="/Users/k24039kk/.vscode/extensions/visualstudiotoolsforunity.vstuc-1.2.2/Analyzers/Microsoft.Unity.Analyzers.dll" />
+    <Analyzer Include="/Users/k24039kk/.vscode/extensions/visualstudiotoolsforunity.vstuc-1.3.1/Analyzers/Microsoft.Unity.Analyzers.dll" />
     <Analyzer Include="/Applications/Unity/Hub/Editor/6000.3.6f1/Unity.app/Contents/Resources/BuildPipeline/Unity.SourceGenerators/Unity.SourceGenerators.dll" />
     <Analyzer Include="/Applications/Unity/Hub/Editor/6000.3.6f1/Unity.app/Contents/Resources/BuildPipeline/Unity.SourceGenerators/Unity.Properties.SourceGenerator.dll" />
     <Analyzer Include="/Applications/Unity/Hub/Editor/6000.3.6f1/Unity.app/Contents/Resources/BuildPipeline/Unity.SourceGenerators/Unity.UIToolkit.SourceGenerator.dll" />
@@ -54,11 +54,13 @@
     <Compile Include="Assets/Scripts/menu_panel/AdministratorMenuManager.cs" />
     <Compile Include="Assets/Scripts/DataManager.cs" />
     <Compile Include="Assets/Scripts/tutorial_scene/TutorialSceneMenuPanelManager.cs" />
+    <Compile Include="Assets/Scripts/PeriscopeController.cs" />
     <Compile Include="Assets/Scripts/tutorial_scene/TutorialEnemyShip.cs" />
     <Compile Include="Assets/Scripts/Sonar.cs" />
     <Compile Include="Assets/Scripts/UnderwaterVolumeSwitcher.cs" />
     <Compile Include="Assets/Scripts/start_scene/DelayedVideoLoop.cs" />
     <Compile Include="Assets/Scripts/SensorRead.cs" />
+    <Compile Include="Assets/Scripts/CommunicationMissionManager.cs" />
     <Compile Include="Assets/Scripts/MainCamera.cs" />
     <Compile Include="Assets/Scripts/ProconReceiver.cs" />
     <Compile Include="Assets/Scripts/TutorialSceneManager.cs" />
@@ -68,6 +70,8 @@
     <Compile Include="Assets/Scripts/GameSettingPanel.cs" />
     <Compile Include="Assets/Scripts/UnderwaterEnvironmentSwitcher.cs" />
     <Compile Include="Assets/Scripts/result_scene/ResultSceneManager.cs" />
+    <Compile Include="Assets/Scripts/SignalInputController.cs" />
+    <Compile Include="Assets/Scripts/SignalSymbol.cs" />
     <Compile Include="Assets/Scripts/menu_panel/SceneSettingPanel.cs" />
     <Compile Include="Assets/Scripts/start_scene/StartSceneManager.cs" />
     <Compile Include="Assets/Scripts/menu_panel/TimeScaleSettingPanel.cs" />

@@ -3,56 +3,150 @@ using System.Collections.Generic;
 
 public static class DataManager
 {
-    // =========================
+    // ============================================================
+    // 定数
+    // ============================================================
+
+    private const float DefaultSubmarineMaxSpeed = 3.0f;
+
+    private const float DefaultEnemyShipMaxSpeed = 3.0f;
+    private const float DefaultFellowShipMaxSpeed = 3.0f;
+    private const float DefaultEnemyShipRotateRadius = 50.0f;
+
+    private const float MinimumNonNegativeValue = 0.0f;
+
+    private const float FullRotationDegrees = 360.0f;
+
+    private const int ButtonReleased = 0;
+    private const int ButtonPressed = 1;
+
+    private const string EnemyShipNamePrefix = "EnemyShip";
+    private const int EnemyShipNameTokenCount = 2;
+
+    private const int DistanceDataDirectionXIndex = 0;
+    private const int DistanceDataDirectionZIndex = 1;
+    private const int DistanceDataDistanceIndex = 2;
+    private const int DistanceDataLength = 3;
+
+
+    // ============================================================
     // 潜水艦
-    // =========================
+    // ============================================================
 
-    private static Vector3 submarine_position;        // 潜水艦の座標
-    private static float submarine_rotation;          // 潜水艦の向き（y軸）
-    private static float submarine_max_speed = 3.0f;  // 潜水艦の最大速度
+    private static Vector3 submarine_position =
+        Vector3.zero;
+
+    private static float submarine_rotation =
+        0.0f;
+
+    private static float submarine_max_speed =
+        DefaultSubmarineMaxSpeed;
 
 
-    // =========================
+    // ============================================================
+    // 潜望鏡
+    // ============================================================
+
+    // 潜望鏡の実際の視点位置
+    private static Vector3 periscope_position =
+        Vector3.zero;
+
+
+    // 潜望鏡が現在向いているWorld Yaw
+    private static float periscope_rotation =
+        0.0f;
+
+
+    // PeriscopeRootのLocal Y
+    private static float periscope_local_height =
+        0.0f;
+
+
+    // 潜望鏡の視点が海面より上にあるか
+    private static bool periscope_is_above_surface =
+        false;
+
+
+    // 潜望鏡が上限位置まで上がっているか
+    private static bool periscope_is_fully_raised =
+        false;
+
+
+    // 潜望鏡が下限位置まで下がっているか
+    private static bool periscope_is_fully_lowered =
+        false;
+
+
+    // ============================================================
     // 敵艦・味方艦
-    // =========================
+    // ============================================================
 
-    private static float enemyShip_max_speed = 3.0f;   // 敵艦の最大速度
-    private static float fellowShip_max_speed = 3.0f;  // 味方艦の最大速度
-
-    private static float enemyShip_rotate_radius = 50f; // 敵艦の回転半径
+    private static float enemyShip_max_speed =
+        DefaultEnemyShipMaxSpeed;
 
 
-    // =========================
+    private static float fellowShip_max_speed =
+        DefaultFellowShipMaxSpeed;
+
+
+    private static float enemyShip_rotate_radius =
+        DefaultEnemyShipRotateRadius;
+
+
+    // ============================================================
     // センサー
-    // =========================
+    // ============================================================
 
-    private static float sensor_yaw = 0f;
-    private static float sensor_speed = 0f;
-
-    private static int sensor_button1 = 0;
-    private static int sensor_button2 = 0;
-    private static int sensor_button3 = 0;
-    private static int sensor_button4 = 0;
-    private static int sensor_button5 = 0;
-    private static int sensor_button6 = 0;
+    private static float sensor_yaw =
+        0.0f;
 
 
-    // =========================
+    private static float sensor_speed =
+        0.0f;
+
+
+    private static int sensor_button1 =
+        ButtonReleased;
+
+    private static int sensor_button2 =
+        ButtonReleased;
+
+    private static int sensor_button3 =
+        ButtonReleased;
+
+    private static int sensor_button4 =
+        ButtonReleased;
+
+    private static int sensor_button5 =
+        ButtonReleased;
+
+    private static int sensor_button6 =
+        ButtonReleased;
+
+
+    // ============================================================
     // スコア・敵艦リスト
-    // =========================
+    // ============================================================
 
-    private static int score;
+    private static int score =
+        0;
 
-    private static List<string> enemy_ships_list = new();
+
+    private static readonly List<string>
+        enemy_ships_list =
+            new();
 
 
-    // =========================
+    // ============================================================
     // その他設定
-    // =========================
+    // ============================================================
 
-    private static bool changeSceneConfirmation = true;
+    private static bool changeSceneConfirmation =
+        true;
 
-    private static bool sonar_panel_underwater_canopen = false;
+
+    private static bool sonar_panel_underwater_canopen =
+        false;
 
 
     // ============================================================
@@ -61,23 +155,90 @@ public static class DataManager
 
     public static void Initialize()
     {
-        // スコアを初期化
+        // =========================
+        // 潜水艦
+        // =========================
+
+        submarine_position =
+            Vector3.zero;
+
+        submarine_rotation =
+            0.0f;
+
+
+        // =========================
+        // 潜望鏡
+        // =========================
+
+        periscope_position =
+            Vector3.zero;
+
+        periscope_rotation =
+            0.0f;
+
+        periscope_local_height =
+            0.0f;
+
+        periscope_is_above_surface =
+            false;
+
+        periscope_is_fully_raised =
+            false;
+
+        periscope_is_fully_lowered =
+            false;
+
+
+        // =========================
+        // スコア
+        // =========================
+
         SetScore(0);
 
-        // 敵艦リストを初期化
+
+        // =========================
+        // 敵艦一覧
+        // =========================
+
         enemy_ships_list.Clear();
 
 
-        // センサー値を初期化
-        SetSensorYaw(0f);
-        SetSensorSpeed(0f);
+        // =========================
+        // センサー
+        // =========================
 
-        SetSensorButton1(0);
-        SetSensorButton2(0);
-        SetSensorButton3(0);
-        SetSensorButton4(0);
-        SetSensorButton5(0);
-        SetSensorButton6(0);
+        SetSensorYaw(
+            0.0f
+        );
+
+        SetSensorSpeed(
+            0.0f
+        );
+
+
+        SetSensorButton1(
+            ButtonReleased
+        );
+
+        SetSensorButton2(
+            ButtonReleased
+        );
+
+        SetSensorButton3(
+            ButtonReleased
+        );
+
+        SetSensorButton4(
+            ButtonReleased
+        );
+
+        SetSensorButton5(
+            ButtonReleased
+        );
+
+        SetSensorButton6(
+            ButtonReleased
+        );
     }
 
 
@@ -85,68 +246,256 @@ public static class DataManager
     // 潜水艦
     // ============================================================
 
-    /// <summary>
-    /// 潜水艦の現在の座標を返す
-    /// </summary>
-    /// <returns> Vector3 潜水艦の座標 </returns>
     public static Vector3 GetSubmarinePosition()
     {
-        return submarine_position;
+        return
+            submarine_position;
     }
 
 
-    /// <summary>
-    /// 潜水艦の現在の座標を設定する
-    /// </summary>
-    /// <param name="position">潜水艦の座標</param>
-    /// <returns> bool 成功したかどうか（成功：true，失敗：false） </returns>
-    public static bool SetSubmarinePosition(Vector3 position)
+    public static bool SetSubmarinePosition(
+        Vector3 position
+    )
     {
-        if (position == null)
+        if (!IsFinite(position))
         {
             Debug.LogError(
-                "Invalid position: " + position
+                "Invalid submarine position: " +
+                position
             );
 
             return false;
         }
 
-        submarine_position = position;
+
+        submarine_position =
+            position;
+
 
         return true;
     }
 
 
-    /// <summary>
-    /// 潜水艦の現在の向きを返す
-    /// </summary>
-    /// <returns> float 潜水艦の向き（y軸） </returns>
     public static float GetSubmarineRotation()
     {
-        return submarine_rotation;
+        return
+            submarine_rotation;
     }
 
 
-    /// <summary>
-    /// 潜水艦の現在の向きを設定する
-    /// </summary>
-    /// <param name="rotation">潜水艦の向き（y軸）</param>
-    /// <returns> bool 成功したかどうか（成功：true，失敗：false） </returns>
-    public static bool SetSubmarineRotation(float rotation)
+    public static bool SetSubmarineRotation(
+        float rotation
+    )
     {
-        submarine_rotation = rotation;
+        if (!IsFinite(rotation))
+        {
+            Debug.LogError(
+                "Invalid submarine rotation: " +
+                rotation
+            );
+
+            return false;
+        }
+
+
+        submarine_rotation =
+            NormalizeAngle(
+                rotation
+            );
+
+
+        return true;
+    }
+
+
+    public static float GetSubmarineMaxSpeed()
+    {
+        return
+            submarine_max_speed;
+    }
+
+
+    public static bool SetSubmarineMaxSpeed(
+        float maxSpeed
+    )
+    {
+        if (
+            !IsFinite(maxSpeed) ||
+            maxSpeed <
+            MinimumNonNegativeValue
+        )
+        {
+            return false;
+        }
+
+
+        submarine_max_speed =
+            maxSpeed;
+
+
+        return true;
+    }
+
+
+    // ============================================================
+    // 潜望鏡
+    // ============================================================
+
+    /// <summary>
+    /// 潜望鏡の実際の視点位置を返す。
+    /// 通常はMain CameraのWorld Position。
+    /// </summary>
+    public static Vector3 GetPeriscopePosition()
+    {
+        return
+            periscope_position;
+    }
+
+
+    public static bool SetPeriscopePosition(
+        Vector3 position
+    )
+    {
+        if (!IsFinite(position))
+        {
+            Debug.LogError(
+                "Invalid periscope position: " +
+                position
+            );
+
+            return false;
+        }
+
+
+        periscope_position =
+            position;
+
 
         return true;
     }
 
 
     /// <summary>
-    /// 潜水艦の最大速度を返す
+    /// 潜望鏡が現在向いているWorld Yawを返す。
     /// </summary>
-    /// <returns>float 潜水艦の最大速度</returns>
-    public static float GetSubmarineMaxSpeed()
+    public static float GetPeriscopeRotation()
     {
-        return submarine_max_speed;
+        return
+            periscope_rotation;
+    }
+
+
+    public static bool SetPeriscopeRotation(
+        float rotation
+    )
+    {
+        if (!IsFinite(rotation))
+        {
+            Debug.LogError(
+                "Invalid periscope rotation: " +
+                rotation
+            );
+
+            return false;
+        }
+
+
+        periscope_rotation =
+            NormalizeAngle(
+                rotation
+            );
+
+
+        return true;
+    }
+
+
+    /// <summary>
+    /// PeriscopeRootのLocal Yを返す。
+    /// </summary>
+    public static float GetPeriscopeLocalHeight()
+    {
+        return
+            periscope_local_height;
+    }
+
+
+    public static bool SetPeriscopeLocalHeight(
+        float localHeight
+    )
+    {
+        if (!IsFinite(localHeight))
+        {
+            return false;
+        }
+
+
+        periscope_local_height =
+            localHeight;
+
+
+        return true;
+    }
+
+
+    /// <summary>
+    /// 潜望鏡の視点が海面より上に露出しているか。
+    /// </summary>
+    public static bool GetIsPeriscopeAboveSurface()
+    {
+        return
+            periscope_is_above_surface;
+    }
+
+
+    public static void SetIsPeriscopeAboveSurface(
+        bool isAboveSurface
+    )
+    {
+        periscope_is_above_surface =
+            isAboveSurface;
+    }
+
+
+    /// <summary>
+    /// 潜望鏡が上限位置まで上がっているか。
+    /// </summary>
+    public static bool GetIsPeriscopeFullyRaised()
+    {
+        return
+            periscope_is_fully_raised;
+    }
+
+
+    public static void SetIsPeriscopeFullyRaised(
+        bool isFullyRaised
+    )
+    {
+        periscope_is_fully_raised =
+            isFullyRaised;
+    }
+
+
+    /// <summary>
+    /// 潜望鏡が下限位置まで下がっているか。
+    ///
+    /// 後でSignalInputControllerから
+    /// 「完全に格納されている時だけButton4を有効」
+    /// とするために使用する。
+    /// </summary>
+    public static bool GetIsPeriscopeFullyLowered()
+    {
+        return
+            periscope_is_fully_lowered;
+    }
+
+
+    public static void SetIsPeriscopeFullyLowered(
+        bool isFullyLowered
+    )
+    {
+        periscope_is_fully_lowered =
+            isFullyLowered;
     }
 
 
@@ -154,33 +503,90 @@ public static class DataManager
     // 敵艦・味方艦
     // ============================================================
 
-    /// <summary>
-    /// 敵艦の最大速度を返す
-    /// </summary>
-    /// <returns>float 敵艦の最大速度</returns>
     public static float GetEnemyShipMaxSpeed()
     {
-        return enemyShip_max_speed;
+        return
+            enemyShip_max_speed;
     }
 
 
-    /// <summary>
-    /// 味方艦の最大速度を返す
-    /// </summary>
-    /// <returns>float 味方艦の最大速度</returns>
+    public static bool SetEnemyShipMaxSpeed(
+        float maxSpeed
+    )
+    {
+        if (
+            !IsFinite(maxSpeed) ||
+            maxSpeed <
+            MinimumNonNegativeValue
+        )
+        {
+            return false;
+        }
+
+
+        enemyShip_max_speed =
+            maxSpeed;
+
+
+        return true;
+    }
+
+
     public static float GetFellowShipMaxSpeed()
     {
-        return fellowShip_max_speed;
+        return
+            fellowShip_max_speed;
     }
 
 
-    /// <summary>
-    /// 敵艦の回転半径を返す
-    /// </summary>
-    /// <returns>float 敵艦の回転半径</returns>
+    public static bool SetFellowShipMaxSpeed(
+        float maxSpeed
+    )
+    {
+        if (
+            !IsFinite(maxSpeed) ||
+            maxSpeed <
+            MinimumNonNegativeValue
+        )
+        {
+            return false;
+        }
+
+
+        fellowShip_max_speed =
+            maxSpeed;
+
+
+        return true;
+    }
+
+
     public static float GetEnemyShipRotateRadius()
     {
-        return enemyShip_rotate_radius;
+        return
+            enemyShip_rotate_radius;
+    }
+
+
+    public static bool SetEnemyShipRotateRadius(
+        float radius
+    )
+    {
+        if (
+            !IsFinite(radius) ||
+            radius <
+            MinimumNonNegativeValue
+        )
+        {
+            return false;
+        }
+
+
+        enemyShip_rotate_radius =
+            radius;
+
+
+        return true;
     }
 
 
@@ -188,55 +594,32 @@ public static class DataManager
     // スコア
     // ============================================================
 
-    /// <summary>
-    /// 現在のスコアを返す
-    /// </summary>
-    /// <returns> int スコア </returns>
     public static int GetScore()
     {
-        return score;
+        return
+            score;
     }
 
 
-    /**
-     * スコアを加算する
-     * @param int additional_score 加算するスコア
-     * @return bool 成功したかどうか（成功：true，失敗：false）
-     */
-    public static bool AddScore(int additional_score)
+    public static bool AddScore(
+        int additionalScore
+    )
     {
-        if (additional_score == null)
-        {
-            Debug.LogError(
-                "Invalid additional score: " + additional_score
-            );
+        score +=
+            additionalScore;
 
-            return false;
-        }
-
-        score += additional_score;
 
         return true;
     }
 
 
-    /**
-     * スコアを設定する
-     * @param int new_score 現在のスコア
-     * @return bool 成功したかどうか（成功：true，失敗：false）
-     */
-    private static bool SetScore(int new_score)
+    private static bool SetScore(
+        int newScore
+    )
     {
-        if (new_score == null)
-        {
-            Debug.LogError(
-                "Invalid new score: " + new_score
-            );
+        score =
+            newScore;
 
-            return false;
-        }
-
-        score = new_score;
 
         return true;
     }
@@ -246,83 +629,113 @@ public static class DataManager
     // 敵艦リスト
     // ============================================================
 
-    /**
-     * 敵船を追加する
-     * @param string enemyShip_name 敵船の名前（例：EnemyShip_1, EnemyShip_21）
-     * @return bool 追加成功：true, 追加失敗：false
-     */
-    public static bool AddEnemyShip(string enemyShip_name)
+    public static bool AddEnemyShip(
+        string enemyShipName
+    )
     {
-        // nullチェック
-        if (string.IsNullOrWhiteSpace(enemyShip_name))
+        if (
+            string.IsNullOrWhiteSpace(
+                enemyShipName
+            )
+        )
         {
             return false;
         }
 
 
-        // 形式チェック
-        string[] tokens = enemyShip_name.Split("_");
+        string[] tokens =
+            enemyShipName.Split(
+                '_'
+            );
 
 
-        if (tokens.Length != 2)
+        if (
+            tokens.Length !=
+            EnemyShipNameTokenCount
+        )
         {
             return false;
         }
 
 
-        if (tokens[0] != "EnemyShip")
+        if (
+            tokens[0] !=
+            EnemyShipNamePrefix
+        )
         {
             return false;
         }
 
 
-        enemy_ships_list.Add(enemyShip_name);
+        // 二重登録を防止
+        if (
+            enemy_ships_list.Contains(
+                enemyShipName
+            )
+        )
+        {
+            return false;
+        }
+
+
+        enemy_ships_list.Add(
+            enemyShipName
+        );
+
 
         return true;
     }
 
 
-    /**
-     * 敵船を削除する
-     * @param string enemyShip_name 敵船の名前（例：EnemyShip_1, EnemyShip_21）
-     * @return bool 削除成功：true, 削除失敗：false
-     */
-    public static bool DeleteEnemyShip(string enemyShip_name)
+    public static bool DeleteEnemyShip(
+        string enemyShipName
+    )
     {
-        // nullチェック
-        if (string.IsNullOrWhiteSpace(enemyShip_name))
+        if (
+            string.IsNullOrWhiteSpace(
+                enemyShipName
+            )
+        )
         {
             return false;
         }
 
 
-        return enemy_ships_list.Remove(enemyShip_name);
+        return
+            enemy_ships_list.Remove(
+                enemyShipName
+            );
     }
 
 
-    /**
-     * 敵船の一覧をList<string>型で返す
-     * @return List<string> 敵船の一覧
-     */
     public static List<string> GetEnemyShipList()
     {
-        return enemy_ships_list;
+        return
+            enemy_ships_list;
     }
 
 
-    /**
-     * 潜水艦と全ての敵船の距離と方角の情報をListにして返す
-     *
-     * ## 情報の入り方
-     * [(subm_x - ship_x), (subm_z - ship_z), (distance)]
-     * - 潜水艦から敵船への方角：Vector2([0], [1])
-     * - 潜水艦から敵船までの距離；[2]
-     *
-     * @return List<float[]>
-     */
-    public static List<float[]> GetEnemyShipDistanceList()
+    // ============================================================
+    // 敵艦距離情報
+    // ============================================================
+
+    /// <summary>
+    /// 潜水艦から各敵艦までの
+    /// X方向・Z方向・距離を返す。
+    ///
+    /// [0] = X方向
+    /// [1] = Z方向
+    /// [2] = 距離
+    ///
+    /// この形式は現在のSonar.csとの互換性維持用。
+    /// 将来的にSurfaceContactへ変更するときに
+    /// 専用クラスへ置き換える予定。
+    /// </summary>
+    public static List<float[]>
+        GetEnemyShipDistanceList()
     {
-        List<float[]> EnemyShipDistanceList = new();
+        List<float[]> resultList =
+            new();
 
 
         for (
@@ -331,52 +744,66 @@ public static class DataManager
             i++
         )
         {
-            GameObject EnemyShip =
+            GameObject enemyShip =
                 GameObject.Find(
                     enemy_ships_list[i]
                 );
 
 
-            if (EnemyShip == null)
+            if (enemyShip == null)
             {
                 continue;
             }
 
 
-            float[] result = new float[3];
+            Vector3 enemyPosition =
+                enemyShip.transform.position;
 
 
-            Vector3 enemyShip_pos =
-                EnemyShip.transform.position;
+            Vector3 difference =
+                enemyPosition -
+                submarine_position;
 
 
-            float enemyShip_pos_x =
-                enemyShip_pos.x;
-
-            float enemyShip_pos_z =
-                enemyShip_pos.z;
-
-
-            result[0] =
-                enemyShip_pos_x -
-                submarine_position.x;
-
-            result[1] =
-                enemyShip_pos_z -
-                submarine_position.z;
-
-            result[2] =
-                Mathf.Sqrt(
-                    (result[0] * result[0]) +
-                    (result[1] * result[1])
-                );
+            float horizontalDistance =
+                new Vector2(
+                    difference.x,
+                    difference.z
+                ).magnitude;
 
 
-            EnemyShipDistanceList.Add(result);
+            float[] result =
+                new float[
+                    DistanceDataLength
+                ];
+
+
+            result[
+                DistanceDataDirectionXIndex
+            ] =
+                difference.x;
+
+
+            result[
+                DistanceDataDirectionZIndex
+            ] =
+                difference.z;
+
+
+            result[
+                DistanceDataDistanceIndex
+            ] =
+                horizontalDistance;
+
+
+            resultList.Add(
+                result
+            );
         }
 
 
-        return EnemyShipDistanceList;
+        return
+            resultList;
     }
 
 
@@ -388,21 +815,26 @@ public static class DataManager
     // Yaw
     // =========================
 
-    /// <summary>
-    /// センサーのyaw角度を取得する
-    /// </summary>
     public static float GetSensorYaw()
     {
-        return sensor_yaw;
+        return
+            sensor_yaw;
     }
 
 
-    /// <summary>
-    /// センサーのyaw角度を設定する
-    /// </summary>
-    public static bool SetSensorYaw(float yaw)
+    public static bool SetSensorYaw(
+        float yaw
+    )
     {
-        sensor_yaw = yaw;
+        if (!IsFinite(yaw))
+        {
+            return false;
+        }
+
+
+        sensor_yaw =
+            yaw;
+
 
         return true;
     }
@@ -412,21 +844,26 @@ public static class DataManager
     // Speed
     // =========================
 
-    /// <summary>
-    /// センサーのspeedを取得する
-    /// </summary>
     public static float GetSensorSpeed()
     {
-        return sensor_speed;
+        return
+            sensor_speed;
     }
 
 
-    /// <summary>
-    /// センサーのspeedを設定する
-    /// </summary>
-    public static bool SetSensorSpeed(float speed)
+    public static bool SetSensorSpeed(
+        float speed
+    )
     {
-        sensor_speed = speed;
+        if (!IsFinite(speed))
+        {
+            return false;
+        }
+
+
+        sensor_speed =
+            speed;
+
 
         return true;
     }
@@ -438,28 +875,21 @@ public static class DataManager
 
     public static int GetSensorButton1()
     {
-        return sensor_button1;
+        return
+            sensor_button1;
     }
 
 
-    public static bool SetSensorButton1(int value)
+    public static bool SetSensorButton1(
+        int value
+    )
     {
-        if (
-            value != 0 &&
-            value != 1
-        )
-        {
-            Debug.LogError(
-                "Invalid Button1 value: " + value
+        return
+            SetButtonValue(
+                ref sensor_button1,
+                value,
+                nameof(sensor_button1)
             );
-
-            return false;
-        }
-
-
-        sensor_button1 = value;
-
-        return true;
     }
 
 
@@ -469,28 +899,21 @@ public static class DataManager
 
     public static int GetSensorButton2()
     {
-        return sensor_button2;
+        return
+            sensor_button2;
     }
 
 
-    public static bool SetSensorButton2(int value)
+    public static bool SetSensorButton2(
+        int value
+    )
     {
-        if (
-            value != 0 &&
-            value != 1
-        )
-        {
-            Debug.LogError(
-                "Invalid Button2 value: " + value
+        return
+            SetButtonValue(
+                ref sensor_button2,
+                value,
+                nameof(sensor_button2)
             );
-
-            return false;
-        }
-
-
-        sensor_button2 = value;
-
-        return true;
     }
 
 
@@ -500,28 +923,21 @@ public static class DataManager
 
     public static int GetSensorButton3()
     {
-        return sensor_button3;
+        return
+            sensor_button3;
     }
 
 
-    public static bool SetSensorButton3(int value)
+    public static bool SetSensorButton3(
+        int value
+    )
     {
-        if (
-            value != 0 &&
-            value != 1
-        )
-        {
-            Debug.LogError(
-                "Invalid Button3 value: " + value
+        return
+            SetButtonValue(
+                ref sensor_button3,
+                value,
+                nameof(sensor_button3)
             );
-
-            return false;
-        }
-
-
-        sensor_button3 = value;
-
-        return true;
     }
 
 
@@ -531,28 +947,21 @@ public static class DataManager
 
     public static int GetSensorButton4()
     {
-        return sensor_button4;
+        return
+            sensor_button4;
     }
 
 
-    public static bool SetSensorButton4(int value)
+    public static bool SetSensorButton4(
+        int value
+    )
     {
-        if (
-            value != 0 &&
-            value != 1
-        )
-        {
-            Debug.LogError(
-                "Invalid Button4 value: " + value
+        return
+            SetButtonValue(
+                ref sensor_button4,
+                value,
+                nameof(sensor_button4)
             );
-
-            return false;
-        }
-
-
-        sensor_button4 = value;
-
-        return true;
     }
 
 
@@ -562,28 +971,21 @@ public static class DataManager
 
     public static int GetSensorButton5()
     {
-        return sensor_button5;
+        return
+            sensor_button5;
     }
 
 
-    public static bool SetSensorButton5(int value)
+    public static bool SetSensorButton5(
+        int value
+    )
     {
-        if (
-            value != 0 &&
-            value != 1
-        )
-        {
-            Debug.LogError(
-                "Invalid Button5 value: " + value
+        return
+            SetButtonValue(
+                ref sensor_button5,
+                value,
+                nameof(sensor_button5)
             );
-
-            return false;
-        }
-
-
-        sensor_button5 = value;
-
-        return true;
     }
 
 
@@ -593,28 +995,21 @@ public static class DataManager
 
     public static int GetSensorButton6()
     {
-        return sensor_button6;
+        return
+            sensor_button6;
     }
 
 
-    public static bool SetSensorButton6(int value)
+    public static bool SetSensorButton6(
+        int value
+    )
     {
-        if (
-            value != 0 &&
-            value != 1
-        )
-        {
-            Debug.LogError(
-                "Invalid Button6 value: " + value
+        return
+            SetButtonValue(
+                ref sensor_button6,
+                value,
+                nameof(sensor_button6)
             );
-
-            return false;
-        }
-
-
-        sensor_button6 = value;
-
-        return true;
     }
 
 
@@ -622,25 +1017,19 @@ public static class DataManager
     // シーン変更確認
     // ============================================================
 
-    /// <summary>
-    /// シーンを変更する際の確認ダイアログを表示するかどうかを返す
-    /// </summary>
-    /// <returns>bool</returns>
     public static bool GetChangeSceneConfirmation()
     {
-        return changeSceneConfirmation;
+        return
+            changeSceneConfirmation;
     }
 
 
-    /// <summary>
-    /// シーンを変更する際の確認ダイアログを表示するかどうかを設定する
-    /// </summary>
-    /// <param name="isEnabled"></param>
     public static void SetChangeSceneConfirmation(
         bool isEnabled
     )
     {
-        changeSceneConfirmation = isEnabled;
+        changeSceneConfirmation =
+            isEnabled;
     }
 
 
@@ -648,16 +1037,87 @@ public static class DataManager
     // ソナー
     // ============================================================
 
-    public static bool GetSonarPanelUnderwaterCanOpen()
+    public static bool
+        GetSonarPanelUnderwaterCanOpen()
     {
-        return sonar_panel_underwater_canopen;
+        return
+            sonar_panel_underwater_canopen;
     }
 
 
-    public static void SetSonarPanelUnderwaterCanOpen(
-        bool canOpen
+    public static void
+        SetSonarPanelUnderwaterCanOpen(
+            bool canOpen
+        )
+    {
+        sonar_panel_underwater_canopen =
+            canOpen;
+    }
+
+
+    // ============================================================
+    // 共通処理
+    // ============================================================
+
+    private static bool SetButtonValue(
+        ref int targetButton,
+        int value,
+        string buttonName
     )
     {
-        sonar_panel_underwater_canopen = canOpen;
+        if (
+            value != ButtonReleased &&
+            value != ButtonPressed
+        )
+        {
+            Debug.LogError(
+                "Invalid button value (" +
+                buttonName +
+                "): " +
+                value
+            );
+
+            return false;
+        }
+
+
+        targetButton =
+            value;
+
+
+        return true;
+    }
+
+
+    private static float NormalizeAngle(
+        float angle
+    )
+    {
+        return
+            Mathf.Repeat(
+                angle,
+                FullRotationDegrees
+            );
+    }
+
+
+    private static bool IsFinite(
+        float value
+    )
+    {
+        return
+            !float.IsNaN(value) &&
+            !float.IsInfinity(value);
+    }
+
+
+    private static bool IsFinite(
+        Vector3 value
+    )
+    {
+        return
+            IsFinite(value.x) &&
+            IsFinite(value.y) &&
+            IsFinite(value.z);
     }
 }
