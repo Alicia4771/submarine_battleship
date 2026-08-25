@@ -49,6 +49,7 @@
     <Analyzer Include="/Applications/Unity/Hub/Editor/6000.3.6f1/Unity.app/Contents/Resources/BuildPipeline/Unity.SourceGenerators/Unity.UIToolkit.SourceGenerator.dll" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assets/Scripts/AmbientContactSpawner.cs" />
     <Compile Include="Assets/Scripts/tutorial_scene/TutorialSceneGameManager.cs" />
     <Compile Include="Assets/Scripts/menu_panel/MenuPanelManager.cs" />
     <Compile Include="Assets/Scripts/menu_panel/AdministratorMenuManager.cs" />
@@ -68,8 +69,11 @@
     <Compile Include="Assets/Scripts/TutorialSceneManager.cs" />
     <Compile Include="Assets/Scripts/ship/Ship.cs" />
     <Compile Include="Assets/TutorialInfo/Scripts/Readme.cs" />
+    <Compile Include="Assets/Scripts/ExposureRiskUIController.cs" />
     <Compile Include="Assets/Scripts/ship/EnemyShip.cs" />
+    <Compile Include="Assets/Scripts/SurfaceContact.cs" />
     <Compile Include="Assets/Scripts/GameSettingPanel.cs" />
+    <Compile Include="Assets/Scripts/ship/PassiveSurfaceShip.cs" />
     <Compile Include="Assets/Scripts/UnderwaterEnvironmentSwitcher.cs" />
     <Compile Include="Assets/Scripts/result_scene/ResultSceneManager.cs" />
     <Compile Include="Assets/Scripts/SignalInputController.cs" />

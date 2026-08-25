@@ -2,58 +2,109 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-[RequireComponent(typeof(Rigidbody))]
+[RequireComponent(
+    typeof(Rigidbody),
+    typeof(SurfaceContact)
+)]
+[DisallowMultipleComponent]
 public class EnemyShip : Ship
 {
     // ============================================================
     // 定数
     // ============================================================
 
-    private const float DefaultMovementSpeed = 0.2f;
-    private const float DefaultRadiusRandomFactor = 0.05f;
+    private const float DefaultMovementSpeed =
+        0.2f;
 
-    private const float DefaultModelRotationOffset = 90.0f;
+    private const float DefaultRadiusRandomFactor =
+        0.05f;
 
-    private const float DefaultPeriscopeFOV = 45.0f;
-    private const float DefaultMaximumDetectionDistance = 50.0f;
-
-    private const float MinimumPeriscopeFOV = 1.0f;
-    private const float MaximumPeriscopeFOV = 179.0f;
-
-    private const int DefaultMinimumSignalLength = 4;
-    private const int DefaultMaximumSignalLength = 4;
-
-    private const float DefaultShortSignalDuration = 0.15f;
-    private const float DefaultLongSignalDuration = 0.65f;
-    private const float DefaultSymbolBlankDuration = 0.15f;
-
-    private const int DefaultSignalRepeatCount = 1;
-    private const float DefaultSignalRepeatInterval = 1.5f;
-
-    private const float DefaultSignalIntensity = 1500.0f;
-    private const float DefaultSignalRange = 150.0f;
-
-    private const float ShortSignalProbability = 0.5f;
-
-    private const float MinimumNonNegativeValue = 0.0f;
-
-    private const int MinimumSignalLength = 1;
-    private const int MinimumSignalRepeatCount = 1;
-
-    private const float FullCircleRadians =
-        Mathf.PI * 2.0f;
+    private const float DefaultModelRotationOffset =
+        90.0f;
 
 
-    private static readonly Vector3 DefaultSignalLightLocalPosition =
-        new Vector3(
-            0.0f,
-            3.0f,
-            0.0f
-        );
+    private const float DefaultPeriscopeFOV =
+        45.0f;
+
+    private const float DefaultMaximumDetectionDistance =
+        50.0f;
+
+
+    private const float MinimumPeriscopeFOV =
+        1.0f;
+
+    private const float MaximumPeriscopeFOV =
+        179.0f;
+
+
+    // 敵艦を視界に入れてから
+    // 通信信号開始までに必要な観察時間
+    private const float DefaultRequiredObservationTime =
+        1.5f;
+
+
+    private const int DefaultMinimumSignalLength =
+        4;
+
+    private const int DefaultMaximumSignalLength =
+        4;
+
+
+    private const float DefaultShortSignalDuration =
+        0.15f;
+
+    private const float DefaultLongSignalDuration =
+        0.65f;
+
+    private const float DefaultSymbolBlankDuration =
+        0.15f;
+
+
+    private const int DefaultSignalRepeatCount =
+        1;
+
+    private const float DefaultSignalRepeatInterval =
+        1.5f;
+
+
+    private const float DefaultSignalIntensity =
+        1500.0f;
+
+    private const float DefaultSignalRange =
+        150.0f;
+
+
+    private const float ShortSignalProbability =
+        0.5f;
+
+
+    private const float MinimumNonNegativeValue =
+        0.0f;
+
+
+    private const int MinimumSignalLength =
+        1;
+
+    private const int MinimumSignalRepeatCount =
+        1;
+
+
+    private static readonly float FullCircleRadians =
+        Mathf.PI *
+        2.0f;
+
+
+    private static readonly Vector3
+        DefaultSignalLightLocalPosition =
+            new Vector3(
+                0.0f,
+                3.0f,
+                0.0f
+            );
 
 
     // ============================================================
-    // 移動設定
+    // 移動
     // ============================================================
 
     [Header("Movement")]
@@ -74,20 +125,20 @@ public class EnemyShip : Ship
 
 
     [SerializeField, Tooltip(
-        "船モデルの向きを補正する角度")]
+        "船モデルの進行方向に対するY回転補正")]
     private float modelRotationOffset =
         DefaultModelRotationOffset;
 
 
     // ============================================================
-    // 潜望鏡による発見設定
+    // 潜望鏡による発見
     // ============================================================
 
     [Header("Periscope Detection")]
 
     [SerializeField, Tooltip(
         "敵艦を発見できる潜望鏡の視野角。" +
-        "設定値は左右合計の角度")]
+        "左右合計の角度")]
     [Range(
         MinimumPeriscopeFOV,
         MaximumPeriscopeFOV
@@ -104,16 +155,38 @@ public class EnemyShip : Ship
 
 
     [SerializeField, Tooltip(
-        "発見されるまでは敵艦モデルを非表示にする。" +
-        "通常のゲームではOFF推奨")]
+        "発見されるまで敵艦モデルを非表示にする。" +
+        "通常ゲームではOFF推奨")]
     private bool hideUntilDetected =
         false;
 
 
     [SerializeField, Tooltip(
-        "非表示切替の対象。" +
-        "未設定の場合は最初の子GameObjectを使用する")]
+        "非表示切替対象。" +
+        "未設定なら最初の子GameObjectを使用する")]
     private GameObject shipVisual;
+
+
+    // ============================================================
+    // 信号開始までの観察
+    // ============================================================
+
+    [Header("Signal Preparation")]
+
+    [SerializeField, Tooltip(
+        "敵艦を潜望鏡に捉えてから" +
+        "信号が始まるまでに必要な時間")]
+    [Min(MinimumNonNegativeValue)]
+    private float requiredObservationTimeBeforeSignal =
+        DefaultRequiredObservationTime;
+
+
+    [SerializeField, Tooltip(
+        "ONの場合、信号開始まで敵艦を" +
+        "潜望鏡の視界内に捉え続ける必要がある。" +
+        "途中で視界から外れると観察時間をリセットする")]
+    private bool requireContinuousObservationUntilSignal =
+        true;
 
 
     // ============================================================
@@ -214,23 +287,34 @@ public class EnemyShip : Ship
 
 
     [SerializeField, Tooltip(
-        "使用するLightの種類。" +
-        "現在はPointを推奨")]
+        "使用するLightの種類")]
     private LightType signalLightType =
         LightType.Point;
 
 
     // ============================================================
-    // 連携
+    // Mission
     // ============================================================
 
     [Header("Mission")]
 
     [SerializeField, Tooltip(
-        "通信ミッション全体を管理するManager。" +
-        "未設定の場合は自動検索する")]
+        "通信ミッションを管理するManager。" +
+        "未設定なら自動検索する")]
     private CommunicationMissionManager
         communicationMissionManager;
+
+
+    // ============================================================
+    // Debug
+    // ============================================================
+
+    [Header("Debug")]
+
+    [SerializeField, Tooltip(
+        "観察開始・解除・信号開始をConsoleへ表示する")]
+    private bool debugLog =
+        false;
 
 
     // ============================================================
@@ -239,10 +323,15 @@ public class EnemyShip : Ship
 
     private Rigidbody shipRigidbody;
 
+    private SurfaceContact surfaceContact;
+
+
     private Vector3 centerPoint;
 
     private float movementRadius;
+
     private float currentMovementAngle;
+
 
     private Light signalLight;
 
@@ -254,14 +343,36 @@ public class EnemyShip : Ship
             new List<SignalSymbol>();
 
 
+    // ============================================================
+    // 発見状態
+    // ============================================================
+
     private bool isDetected =
         false;
+
 
     private bool signalStarted =
         false;
 
+
     private bool signalFinished =
         false;
+
+
+    // ============================================================
+    // 観察状態
+    // ============================================================
+
+    private bool observationStarted =
+        false;
+
+
+    private bool targetCurrentlyInView =
+        false;
+
+
+    private float currentObservationTime =
+        MinimumNonNegativeValue;
 
 
     // ============================================================
@@ -287,15 +398,43 @@ public class EnemyShip : Ship
                 "EnemyShipにRigidbodyがありません。"
             );
 
+
             enabled =
                 false;
+
 
             return;
         }
 
 
         // =========================
-        // MissionManager取得
+        // SurfaceContact
+        // =========================
+
+        surfaceContact =
+            GetComponent<SurfaceContact>();
+
+
+        if (surfaceContact == null)
+        {
+            surfaceContact =
+                gameObject
+                    .AddComponent<SurfaceContact>();
+        }
+
+
+        surfaceContact.SetContactType(
+            SurfaceContactType.Enemy
+        );
+
+
+        surfaceContact.SetSonarDetectable(
+            true
+        );
+
+
+        // =========================
+        // MissionManager
         // =========================
 
         if (
@@ -322,35 +461,35 @@ public class EnemyShip : Ship
 
 
         // =========================
-        // 見た目取得
+        // 見た目
         // =========================
 
         ResolveShipVisual();
 
 
         // =========================
-        // 移動初期化
+        // 移動
         // =========================
 
         InitializeMovement();
 
 
         // =========================
-        // 信号生成
+        // 信号
         // =========================
 
         GenerateSignalPattern();
 
 
         // =========================
-        // 信号ライト
+        // ライト
         // =========================
 
         CreateSignalLight();
 
 
         // =========================
-        // Rigidbody設定
+        // Rigidbody
         // =========================
 
         shipRigidbody.interpolation =
@@ -367,16 +506,17 @@ public class EnemyShip : Ship
         base.Update();
 
 
-        // まだ通信対象として発見されていない場合だけ
-        // 潜望鏡による発見判定を行う
         if (
-            !isDetected &&
-            !signalStarted &&
-            !signalFinished
+            isDetected ||
+            signalStarted ||
+            signalFinished
         )
         {
-            CheckPeriscopeDetection();
+            return;
         }
+
+
+        UpdatePeriscopeObservation();
     }
 
 
@@ -407,6 +547,7 @@ public class EnemyShip : Ship
             StopCoroutine(
                 signalCoroutine
             );
+
 
             signalCoroutine =
                 null;
@@ -445,9 +586,9 @@ public class EnemyShip : Ship
         )
         {
             shipVisual =
-                transform.GetChild(
-                    0
-                ).gameObject;
+                transform
+                    .GetChild(0)
+                    .gameObject;
         }
 
 
@@ -469,18 +610,10 @@ public class EnemyShip : Ship
 
     private void InitializeMovement()
     {
-        // =========================
-        // 基準となる円運動半径
-        // =========================
-
         float baseRadius =
             DataManager
                 .GetEnemyShipRotateRadius();
 
-
-        // =========================
-        // 艦ごとの半径ランダム差
-        // =========================
 
         float randomRadiusOffset =
             baseRadius *
@@ -503,11 +636,7 @@ public class EnemyShip : Ship
 
 
         // =========================
-        // 円周上の開始角度
-        // =========================
-        //
-        // 各敵艦が毎回同じ位置関係の
-        // 円運動にならないようランダム化する。
+        // 開始角度
         // =========================
 
         currentMovementAngle =
@@ -518,30 +647,13 @@ public class EnemyShip : Ship
 
 
         // =========================
-        // 円の中心を逆算
-        // =========================
-        //
-        // GameManagerがInstantiateした現在位置を
-        // 「円周上の初期位置」として扱う。
-        //
-        // 以前のコードのように、
-        // Start時にmovementRadius分だけ
-        // 敵艦が突然移動することを防止する。
+        // 現在のスポーン位置を
+        // 円周上の初期位置として使用
         // =========================
 
         Vector3 radialOffset =
-            new Vector3(
-                Mathf.Cos(
-                    currentMovementAngle
-                ) *
-                movementRadius,
-
-                MinimumNonNegativeValue,
-
-                Mathf.Sin(
-                    currentMovementAngle
-                ) *
-                movementRadius
+            CalculateMovementRadialOffset(
+                currentMovementAngle
             );
 
 
@@ -557,30 +669,20 @@ public class EnemyShip : Ship
 
     private void UpdateCircularMovement()
     {
-        // =========================
-        // 半径が0なら移動しない
-        // =========================
-
         if (
             movementRadius <=
-            MinimumNonNegativeValue
+            Mathf.Epsilon
         )
         {
             return;
         }
 
 
-        // =========================
-        // 角度更新
-        // =========================
-
         currentMovementAngle +=
             movementSpeed *
             Time.fixedDeltaTime;
 
 
-        // 値が無制限に増え続けないよう
-        // 0～2πの範囲へ戻す
         currentMovementAngle =
             Mathf.Repeat(
                 currentMovementAngle,
@@ -588,49 +690,28 @@ public class EnemyShip : Ship
             );
 
 
-        // =========================
-        // 円周上の位置
-        // =========================
-
-        float x =
-            Mathf.Cos(
+        Vector3 radialOffset =
+            CalculateMovementRadialOffset(
                 currentMovementAngle
-            ) *
-            movementRadius;
-
-
-        float z =
-            Mathf.Sin(
-                currentMovementAngle
-            ) *
-            movementRadius;
+            );
 
 
         Vector3 nextPosition =
             centerPoint +
-            new Vector3(
-                x,
-                MinimumNonNegativeValue,
-                z
-            );
+            radialOffset;
 
-
-        // =========================
-        // 移動方向
-        // =========================
 
         Vector3 moveDirection =
             nextPosition -
             shipRigidbody.position;
 
 
-        // 船なので水平方向だけを見る
         moveDirection.y =
             MinimumNonNegativeValue;
 
 
         // =========================
-        // 向き
+        // 船首方向
         // =========================
 
         if (
@@ -670,13 +751,141 @@ public class EnemyShip : Ship
 
 
     // ============================================================
-    // 潜望鏡による発見
+    // 円運動オフセット
     // ============================================================
 
-    private void CheckPeriscopeDetection()
+    private Vector3 CalculateMovementRadialOffset(
+        float angle
+    )
+    {
+        return
+            new Vector3(
+                Mathf.Cos(angle) *
+                movementRadius,
+
+                MinimumNonNegativeValue,
+
+                Mathf.Sin(angle) *
+                movementRadius
+            );
+    }
+
+
+    // ============================================================
+    // 潜望鏡観察
+    // ============================================================
+
+    private void UpdatePeriscopeObservation()
+    {
+        targetCurrentlyInView =
+            IsEnemyInsidePeriscopeView();
+
+
+        // ========================================================
+        // まだ一度も視界に入っていない
+        // ========================================================
+
+        if (!observationStarted)
+        {
+            if (!targetCurrentlyInView)
+            {
+                return;
+            }
+
+
+            observationStarted =
+                true;
+
+
+            currentObservationTime =
+                MinimumNonNegativeValue;
+
+
+            if (debugLog)
+            {
+                Debug.Log(
+                    gameObject.name +
+                    " の観察を開始しました。"
+                );
+            }
+        }
+
+
+        // ========================================================
+        // 継続観察が必要な場合
+        // ========================================================
+
+        if (
+            requireContinuousObservationUntilSignal
+        )
+        {
+            if (!targetCurrentlyInView)
+            {
+                ResetObservation();
+
+
+                return;
+            }
+        }
+
+
+        // ========================================================
+        // 観察時間0なら即開始
+        // ========================================================
+
+        if (
+            requiredObservationTimeBeforeSignal <=
+            MinimumNonNegativeValue
+        )
+        {
+            TryDetectEnemy();
+
+
+            return;
+        }
+
+
+        // ========================================================
+        // 観察時間加算
+        // ========================================================
+        //
+        // Continuous = ON
+        //   → 視界に入っている間だけここまで到達する。
+        //
+        // Continuous = OFF
+        //   → 一度発見すれば視界から外れても時間が進む。
+        // ========================================================
+
+        currentObservationTime +=
+            Time.deltaTime;
+
+
+        // ========================================================
+        // 必要時間に達した
+        // ========================================================
+
+        if (
+            currentObservationTime >=
+            requiredObservationTimeBeforeSignal
+        )
+        {
+            currentObservationTime =
+                requiredObservationTimeBeforeSignal;
+
+
+            TryDetectEnemy();
+        }
+    }
+
+
+    // ============================================================
+    // 潜望鏡の視界内か
+    // ============================================================
+
+    private bool IsEnemyInsidePeriscopeView()
     {
         // =========================
-        // 潜望鏡が海面下なら発見不可
+        // 潜望鏡が海面下
         // =========================
 
         if (
@@ -684,44 +893,29 @@ public class EnemyShip : Ship
                 .GetIsPeriscopeAboveSurface()
         )
         {
-            return;
+            return false;
         }
 
-
-        // =========================
-        // 潜望鏡位置
-        // =========================
 
         Vector3 periscopePosition =
             DataManager
                 .GetPeriscopePosition();
 
 
-        // =========================
-        // 潜望鏡Yaw
-        // =========================
-
         float periscopeYaw =
             DataManager
                 .GetPeriscopeRotation();
 
-
-        // =========================
-        // 潜望鏡正面方向
-        // =========================
 
         Vector3 periscopeForward =
             Quaternion.Euler(
                 MinimumNonNegativeValue,
                 periscopeYaw,
                 MinimumNonNegativeValue
-            ) *
+            )
+            *
             Vector3.forward;
 
-
-        // =========================
-        // 敵艦方向
-        // =========================
 
         Vector3 directionToEnemy =
             transform.position -
@@ -731,6 +925,7 @@ public class EnemyShip : Ship
         // 水平方向だけで判定
         directionToEnemy.y =
             MinimumNonNegativeValue;
+
 
         periscopeForward.y =
             MinimumNonNegativeValue;
@@ -749,23 +944,30 @@ public class EnemyShip : Ship
             maximumDetectionDistance
         )
         {
-            return;
+            return false;
         }
 
 
-        // ほぼ同じ位置なら
-        // 方向ベクトルを作れないため終了
         if (
             directionToEnemy.sqrMagnitude <=
             Mathf.Epsilon
         )
         {
-            return;
+            return false;
+        }
+
+
+        if (
+            periscopeForward.sqrMagnitude <=
+            Mathf.Epsilon
+        )
+        {
+            return false;
         }
 
 
         // =========================
-        // 視野角
+        // FOV
         // =========================
 
         float angle =
@@ -775,32 +977,47 @@ public class EnemyShip : Ship
             );
 
 
-        // periscopeFOVは全体角なので
-        // 左右それぞれ半分
         float halfFOV =
             periscopeFOV *
             0.5f;
 
 
-        if (
-            angle >
-            halfFOV
-        )
-        {
-            return;
-        }
-
-
-        // =========================
-        // 発見処理
-        // =========================
-
-        TryDetectEnemy();
+        return
+            angle <=
+            halfFOV;
     }
 
 
     // ============================================================
-    // 発見
+    // 観察リセット
+    // ============================================================
+
+    private void ResetObservation()
+    {
+        if (
+            debugLog &&
+            observationStarted
+        )
+        {
+            Debug.Log(
+                gameObject.name +
+                " を視界から外したため、" +
+                "観察時間をリセットしました。"
+            );
+        }
+
+
+        observationStarted =
+            false;
+
+
+        currentObservationTime =
+            MinimumNonNegativeValue;
+    }
+
+
+    // ============================================================
+    // 発見確定
     // ============================================================
 
     private void TryDetectEnemy()
@@ -816,12 +1033,7 @@ public class EnemyShip : Ship
 
 
         // =========================
-        // MissionManager確認
-        // =========================
-        //
-        // 他の敵艦の通信処理中などで
-        // MissionManagerが受け付けられない場合は
-        // 発見確定しない。
+        // MissionManager
         // =========================
 
         if (
@@ -839,6 +1051,11 @@ public class EnemyShip : Ship
 
             if (!accepted)
             {
+                // 他の通信ミッション中などの場合は、
+                // 再び観察からやり直せるようにする
+                ResetObservation();
+
+
                 return;
             }
         }
@@ -852,10 +1069,6 @@ public class EnemyShip : Ship
             true;
 
 
-        // =========================
-        // 非表示だった艦を表示
-        // =========================
-
         if (
             shipVisual != null &&
             hideUntilDetected
@@ -863,6 +1076,16 @@ public class EnemyShip : Ship
         {
             shipVisual.SetActive(
                 true
+            );
+        }
+
+
+        if (debugLog)
+        {
+            Debug.Log(
+                gameObject.name +
+                " の観察が完了しました。" +
+                "通信信号を開始します。"
             );
         }
 
@@ -906,9 +1129,9 @@ public class EnemyShip : Ship
 
 
         for (
-            int i = 0;
-            i < signalLength;
-            i++
+            int symbolIndex = 0;
+            symbolIndex < signalLength;
+            symbolIndex++
         )
         {
             bool shortSignal =
@@ -926,24 +1149,16 @@ public class EnemyShip : Ship
 
 
     // ============================================================
-    // ライト生成
+    // 信号ライト作成
     // ============================================================
 
     private void CreateSignalLight()
     {
-        // =========================
-        // Light用GameObject
-        // =========================
-
         GameObject lightObject =
             new GameObject(
                 "AutoSignalLight"
             );
 
-
-        // =========================
-        // 敵艦の子にする
-        // =========================
 
         lightObject.transform.SetParent(
             transform,
@@ -951,17 +1166,9 @@ public class EnemyShip : Ship
         );
 
 
-        // =========================
-        // 位置
-        // =========================
-
         lightObject.transform.localPosition =
             signalLightLocalPosition;
 
-
-        // =========================
-        // Light
-        // =========================
 
         signalLight =
             lightObject
@@ -984,7 +1191,6 @@ public class EnemyShip : Ship
             signalRange;
 
 
-        // 最初は消灯
         signalLight.enabled =
             false;
     }
@@ -1029,20 +1235,12 @@ public class EnemyShip : Ship
             );
 
 
-        // =========================
-        // 信号全体の繰り返し
-        // =========================
-
         for (
             int repeatIndex = 0;
             repeatIndex < repeatCount;
             repeatIndex++
         )
         {
-            // =========================
-            // 各記号
-            // =========================
-
             for (
                 int symbolIndex = 0;
                 symbolIndex < signalPattern.Count;
@@ -1069,10 +1267,6 @@ public class EnemyShip : Ship
             }
 
 
-            // =========================
-            // 次の繰り返しまで待機
-            // =========================
-
             if (
                 repeatIndex <
                 repeatCount - 1
@@ -1095,7 +1289,7 @@ public class EnemyShip : Ship
 
 
     // ============================================================
-    // 点灯
+    // 1回の点滅
     // ============================================================
 
     private IEnumerator PlayFlash(
@@ -1139,7 +1333,7 @@ public class EnemyShip : Ship
 
 
     // ============================================================
-    // 記号時間
+    // 記号点灯時間
     // ============================================================
 
     private float GetSignalDuration(
@@ -1184,20 +1378,12 @@ public class EnemyShip : Ship
             true;
 
 
-        // =========================
-        // ライト消灯
-        // =========================
-
         if (signalLight != null)
         {
             signalLight.enabled =
                 false;
         }
 
-
-        // =========================
-        // MissionManager通知
-        // =========================
 
         if (
             communicationMissionManager !=
@@ -1246,7 +1432,61 @@ public class EnemyShip : Ship
 
 
     // ============================================================
-    // 移動情報取得
+    // 観察状態取得
+    // ============================================================
+
+    public bool GetIsTargetCurrentlyInView()
+    {
+        return
+            targetCurrentlyInView;
+    }
+
+
+    public bool GetIsObservationStarted()
+    {
+        return
+            observationStarted;
+    }
+
+
+    public float GetCurrentObservationTime()
+    {
+        return
+            currentObservationTime;
+    }
+
+
+    public float GetRequiredObservationTime()
+    {
+        return
+            requiredObservationTimeBeforeSignal;
+    }
+
+
+    public float GetObservationProgressNormalized()
+    {
+        if (
+            requiredObservationTimeBeforeSignal <=
+            Mathf.Epsilon
+        )
+        {
+            return
+                isDetected
+                    ? 1.0f
+                    : MinimumNonNegativeValue;
+        }
+
+
+        return
+            Mathf.Clamp01(
+                currentObservationTime /
+                requiredObservationTimeBeforeSignal
+            );
+    }
+
+
+    // ============================================================
+    // 移動情報
     // ============================================================
 
     public Vector3 GetMovementCenter()
@@ -1294,6 +1534,13 @@ public class EnemyShip : Ship
             Mathf.Max(
                 MinimumNonNegativeValue,
                 maximumDetectionDistance
+            );
+
+
+        requiredObservationTimeBeforeSignal =
+            Mathf.Max(
+                MinimumNonNegativeValue,
+                requiredObservationTimeBeforeSignal
             );
 
 

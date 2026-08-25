@@ -1,141 +1,644 @@
-using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine;
 
 public class Sonar : MonoBehaviour
 {
+    // ============================================================
+    // 定数
+    // ============================================================
+
+    private const float DefaultSonarInterval =
+        1.0f;
+
+    private const float DefaultSonarSearchRadius =
+        200.0f;
+
+    private const float DefaultEdgePadding =
+        6.0f;
+
+    private const float MinimumPositiveValue =
+        0.001f;
+
+    private const float CenterAnchor =
+        0.5f;
+
+
+    // ============================================================
+    // UI
+    // ============================================================
+
     [Header("UI")]
-    [SerializeField, Tooltip("ソナー範囲を示す円のRectTransform")] private RectTransform sonarArea;
 
-    [SerializeField, Tooltip("ソナー上に表示する敵船ポイントのUIプレハブ")] private GameObject sonarPointPrefab;
+    [SerializeField, Tooltip(
+        "ソナー範囲を示す円のRectTransform")]
+    private RectTransform sonarArea;
 
-    private float sonarInterval = 1f;           // ソナー情報を更新する間隔
-    private float sonarSearchRadius = 200f;     // ソナーで探知できる距離（単位はゲーム内の距離単位）
-    private float edgePadding = 6f;             // ソナー円の端から少し内側に表示する余白
-    private bool rotateWithSubmarine = true;    // 潜水艦の向きに合わせてソナー表示を回転させるかどうか
 
-    private float timeAccumulator = 0f;
+    [SerializeField, Tooltip(
+        "全ての海上接触に共通で使用するソナーポイントPrefab")]
+    private GameObject sonarPointPrefab;
 
-    private readonly List<GameObject> generatedPoints = new();
 
-    void Start()
+    // ============================================================
+    // Sonar
+    // ============================================================
+
+    [Header("Sonar")]
+
+    [SerializeField, Tooltip(
+        "ソナー情報を更新する間隔")]
+    [Min(MinimumPositiveValue)]
+    private float sonarInterval =
+        DefaultSonarInterval;
+
+
+    [SerializeField, Tooltip(
+        "ソナーで探知可能な最大距離")]
+    [Min(MinimumPositiveValue)]
+    private float sonarSearchRadius =
+        DefaultSonarSearchRadius;
+
+
+    [SerializeField, Tooltip(
+        "ソナー円の端から内側へ確保する余白")]
+    [Min(0.0f)]
+    private float edgePadding =
+        DefaultEdgePadding;
+
+
+    [SerializeField, Tooltip(
+        "潜水艦の向きを基準として表示を回転する")]
+    private bool rotateWithSubmarine =
+        true;
+
+
+    [SerializeField, Tooltip(
+        "ソナー表示方向の補正角")]
+    private float rotationOffsetDegrees =
+        0.0f;
+
+
+    // ============================================================
+    // Compatibility
+    // ============================================================
+
+    [Header("Compatibility")]
+
+    [SerializeField, Tooltip(
+        "SurfaceContactが存在しない場合、" +
+        "従来のDataManager敵艦リストを使用する。" +
+        "チュートリアル互換用")]
+    private bool useLegacyEnemyListWhenNoContacts =
+        true;
+
+
+    // ============================================================
+    // 内部
+    // ============================================================
+
+    private float timeAccumulator =
+        0.0f;
+
+
+    private readonly List<GameObject>
+        generatedPoints =
+            new List<GameObject>();
+
+
+    // ============================================================
+    // Start
+    // ============================================================
+
+    private void Start()
     {
         ClearSonarPoints();
     }
 
-    void OnEnable()
+
+    // ============================================================
+    // Enable
+    // ============================================================
+
+    private void OnEnable()
     {
-        // ソナー画面を開いた瞬間にすぐ更新する
-        timeAccumulator = sonarInterval;
+        // 開いた瞬間に更新
+        timeAccumulator =
+            sonarInterval;
     }
 
-    void OnDisable()
+
+    // ============================================================
+    // Disable
+    // ============================================================
+
+    private void OnDisable()
     {
         ClearSonarPoints();
     }
 
-    void Update()
+
+    // ============================================================
+    // Update
+    // ============================================================
+
+    private void Update()
     {
-        if (sonarArea == null) return;
-        if (sonarPointPrefab == null) return;
+        if (
+            sonarArea == null ||
+            sonarPointPrefab == null
+        )
+        {
+            return;
+        }
 
-        timeAccumulator += Time.deltaTime;
 
-        if (timeAccumulator < sonarInterval) return;
+        timeAccumulator +=
+            Time.deltaTime;
 
-        timeAccumulator = 0f;
+
+        if (
+            timeAccumulator <
+            sonarInterval
+        )
+        {
+            return;
+        }
+
+
+        timeAccumulator =
+            0.0f;
+
 
         UpdateSonar();
     }
+
+
+    // ============================================================
+    // Sonar更新
+    // ============================================================
 
     private void UpdateSonar()
     {
         ClearSonarPoints();
 
-        List<float[]> rawList = DataManager.GetEnemyShipDistanceList();
 
-        if (rawList == null) return;
+        IReadOnlyList<SurfaceContact>
+            contacts =
+                SurfaceContact
+                    .GetRegisteredContacts();
 
-        // SonarAreaの半径を求める
-        float areaRadius = Mathf.Min(sonarArea.rect.width, sonarArea.rect.height) * 0.5f;
 
-        float pointRadius = 0f;
-        RectTransform prefabRect = sonarPointPrefab.GetComponent<RectTransform>();
+        int validSurfaceContactCount =
+            0;
+
+
+        for (
+            int index = 0;
+            index < contacts.Count;
+            index++
+        )
+        {
+            SurfaceContact contact =
+                contacts[index];
+
+
+            if (
+                contact == null ||
+                !contact.isActiveAndEnabled ||
+                !contact.GetIsSonarDetectable()
+            )
+            {
+                continue;
+            }
+
+
+            validSurfaceContactCount++;
+
+
+            TryGenerateContactPoint(
+                contact.GetWorldPosition()
+            );
+        }
+
+
+        // ========================================================
+        // Tutorial等、SurfaceContact未導入シーンとの互換
+        // ========================================================
+
+        if (
+            validSurfaceContactCount <= 0 &&
+            useLegacyEnemyListWhenNoContacts
+        )
+        {
+            GenerateLegacyEnemyPoints();
+        }
+    }
+
+
+    // ============================================================
+    // 1接触を表示
+    // ============================================================
+
+    private void TryGenerateContactPoint(
+        Vector3 contactWorldPosition
+    )
+    {
+        Vector3 submarinePosition =
+            DataManager
+                .GetSubmarinePosition();
+
+
+        Vector3 direction3D =
+            contactWorldPosition -
+            submarinePosition;
+
+
+        direction3D.y =
+            0.0f;
+
+
+        float distance =
+            direction3D.magnitude;
+
+
+        if (
+            distance >
+            sonarSearchRadius
+        )
+        {
+            return;
+        }
+
+
+        Vector2 direction =
+            new Vector2(
+                direction3D.x,
+                direction3D.z
+            );
+
+
+        Vector2 normalizedDirection =
+            direction.sqrMagnitude >
+            Mathf.Epsilon
+                ? direction.normalized
+                : Vector2.zero;
+
+
+        float distanceRate =
+            Mathf.Clamp01(
+                distance /
+                sonarSearchRadius
+            );
+
+
+        float displayRadius =
+            CalculateDisplayRadius();
+
+
+        Vector2 displayPosition =
+            normalizedDirection *
+            distanceRate *
+            displayRadius;
+
+
+        if (rotateWithSubmarine)
+        {
+            float rotation =
+                DataManager
+                    .GetSubmarineRotation()
+                +
+                rotationOffsetDegrees;
+
+
+            displayPosition =
+                RotateVector2(
+                    displayPosition,
+                    rotation
+                );
+        }
+
+
+        GenerateSonarPoint(
+            displayPosition
+        );
+    }
+
+
+    // ============================================================
+    // 従来Enemyリスト
+    // ============================================================
+
+    private void GenerateLegacyEnemyPoints()
+    {
+        List<float[]> rawList =
+            DataManager
+                .GetEnemyShipDistanceList();
+
+
+        if (rawList == null)
+        {
+            return;
+        }
+
+
+        float displayRadius =
+            CalculateDisplayRadius();
+
+
+        for (
+            int index = 0;
+            index < rawList.Count;
+            index++
+        )
+        {
+            float[] data =
+                rawList[index];
+
+
+            if (
+                data == null ||
+                data.Length < 3
+            )
+            {
+                continue;
+            }
+
+
+            float directionX =
+                data[0];
+
+            float directionZ =
+                data[1];
+
+            float distance =
+                data[2];
+
+
+            if (
+                distance >
+                sonarSearchRadius
+            )
+            {
+                continue;
+            }
+
+
+            Vector2 direction =
+                new Vector2(
+                    directionX,
+                    directionZ
+                );
+
+
+            Vector2 normalizedDirection =
+                direction.sqrMagnitude >
+                Mathf.Epsilon
+                    ? direction.normalized
+                    : Vector2.zero;
+
+
+            float distanceRate =
+                Mathf.Clamp01(
+                    distance /
+                    sonarSearchRadius
+                );
+
+
+            Vector2 displayPosition =
+                normalizedDirection *
+                distanceRate *
+                displayRadius;
+
+
+            if (rotateWithSubmarine)
+            {
+                float rotation =
+                    DataManager
+                        .GetSubmarineRotation()
+                    +
+                    rotationOffsetDegrees;
+
+
+                displayPosition =
+                    RotateVector2(
+                        displayPosition,
+                        rotation
+                    );
+            }
+
+
+            GenerateSonarPoint(
+                displayPosition
+            );
+        }
+    }
+
+
+    // ============================================================
+    // 表示可能半径
+    // ============================================================
+
+    private float CalculateDisplayRadius()
+    {
+        float areaRadius =
+            Mathf.Min(
+                sonarArea.rect.width,
+                sonarArea.rect.height
+            )
+            *
+            CenterAnchor;
+
+
+        float pointRadius =
+            0.0f;
+
+
+        RectTransform prefabRect =
+            sonarPointPrefab
+                .GetComponent<
+                    RectTransform
+                >();
+
 
         if (prefabRect != null)
         {
-            pointRadius = Mathf.Max(prefabRect.rect.width, prefabRect.rect.height) * 0.5f;
+            pointRadius =
+                Mathf.Max(
+                    prefabRect.rect.width,
+                    prefabRect.rect.height
+                )
+                *
+                CenterAnchor;
         }
 
-        float displayRadius = areaRadius - pointRadius - edgePadding;
 
-        for (int i = 0; i < rawList.Count; i++)
-        {
-            float directionX = rawList[i][0];
-            float directionZ = rawList[i][1];
-            float distance = rawList[i][2];
-
-            // 探知範囲外なら表示しない
-            if (distance > sonarSearchRadius) continue;
-
-            Vector2 direction = new Vector2(directionX, directionZ).normalized;
-
-            // 距離を0〜1に変換
-            float distanceRate = distance / sonarSearchRadius;
-
-            // ソナー円の中での表示位置
-            Vector2 displayPosition = direction * distanceRate * displayRadius;
-
-            // 潜水艦の向きに合わせて回転
-            if (rotateWithSubmarine)
-            {
-                displayPosition = RotateVector2(displayPosition, DataManager.GetSubmarineRotation());
-            }
-
-            GenerateSonarPoint(displayPosition);
-        }
+        return
+            Mathf.Max(
+                0.0f,
+                areaRadius -
+                pointRadius -
+                edgePadding
+            );
     }
 
-    private void GenerateSonarPoint(Vector2 anchoredPosition)
-    {
-        GameObject point = Instantiate(sonarPointPrefab, sonarArea);
 
-        RectTransform pointRect = point.GetComponent<RectTransform>();
+    // ============================================================
+    // Point生成
+    // ============================================================
+
+    private void GenerateSonarPoint(
+        Vector2 anchoredPosition
+    )
+    {
+        GameObject point =
+            Instantiate(
+                sonarPointPrefab,
+                sonarArea
+            );
+
+
+        RectTransform pointRect =
+            point.GetComponent<
+                RectTransform
+            >();
+
 
         if (pointRect != null)
         {
-            pointRect.anchorMin = new Vector2(0.5f, 0.5f);
-            pointRect.anchorMax = new Vector2(0.5f, 0.5f);
-            pointRect.pivot = new Vector2(0.5f, 0.5f);
-            pointRect.anchoredPosition = anchoredPosition;
+            Vector2 center =
+                new Vector2(
+                    CenterAnchor,
+                    CenterAnchor
+                );
+
+
+            pointRect.anchorMin =
+                center;
+
+            pointRect.anchorMax =
+                center;
+
+            pointRect.pivot =
+                center;
+
+            pointRect.anchoredPosition =
+                anchoredPosition;
         }
 
-        point.SetActive(true);
-        generatedPoints.Add(point);
+
+        point.SetActive(
+            true
+        );
+
+
+        generatedPoints.Add(
+            point
+        );
     }
+
+
+    // ============================================================
+    // Point削除
+    // ============================================================
 
     private void ClearSonarPoints()
     {
-        for (int i = 0; i < generatedPoints.Count; i++)
+        for (
+            int index = 0;
+            index < generatedPoints.Count;
+            index++
+        )
         {
-            if (generatedPoints[i] != null)
+            if (
+                generatedPoints[index] !=
+                null
+            )
             {
-                Destroy(generatedPoints[i]);
+                Destroy(
+                    generatedPoints[index]
+                );
             }
         }
+
 
         generatedPoints.Clear();
     }
 
-    private Vector2 RotateVector2(Vector2 vector, float angleDegree)
+
+    // ============================================================
+    // Vector回転
+    // ============================================================
+
+    private Vector2 RotateVector2(
+        Vector2 vector,
+        float angleDegree
+    )
     {
-        float rad = angleDegree * Mathf.Deg2Rad;
+        float radian =
+            angleDegree *
+            Mathf.Deg2Rad;
 
-        float sin = Mathf.Sin(rad);
-        float cos = Mathf.Cos(rad);
 
-        float x = vector.x * cos - vector.y * sin;
-        float y = vector.x * sin + vector.y * cos;
+        float sin =
+            Mathf.Sin(
+                radian
+            );
 
-        return new Vector2(x, y);
+
+        float cos =
+            Mathf.Cos(
+                radian
+            );
+
+
+        float x =
+            vector.x *
+            cos
+            -
+            vector.y *
+            sin;
+
+
+        float y =
+            vector.x *
+            sin
+            +
+            vector.y *
+            cos;
+
+
+        return
+            new Vector2(
+                x,
+                y
+            );
+    }
+
+
+    // ============================================================
+    // Inspector
+    // ============================================================
+
+    private void OnValidate()
+    {
+        sonarInterval =
+            Mathf.Max(
+                MinimumPositiveValue,
+                sonarInterval
+            );
+
+
+        sonarSearchRadius =
+            Mathf.Max(
+                MinimumPositiveValue,
+                sonarSearchRadius
+            );
+
+
+        edgePadding =
+            Mathf.Max(
+                0.0f,
+                edgePadding
+            );
     }
 }

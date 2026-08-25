@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -8,49 +9,82 @@ public class GameManager : MonoBehaviour
     // 定数
     // ============================================================
 
-    private const float DefaultTimeLimit = 60.0f;
+    private const float DefaultTimeLimit =
+        60.0f;
 
-    private const float DefaultInitialSpawnDelay = 1.0f;
-    private const float DefaultNextSpawnDelay = 2.0f;
+    private const float UnlimitedTimeValue =
+        0.0f;
 
-    private const float DefaultSpawnDistanceMagnification = 2.0f;
+    private const float DefaultInitialSpawnDelay =
+        1.0f;
 
-    private const float DefaultSpawnAngleMin = 0.0f;
-    private const float DefaultSpawnAngleMax = 360.0f;
+    private const float DefaultNextSpawnDelay =
+        2.0f;
 
-    private const float DefaultEnemyShipWorldY = 0.0f;
+    private const float DefaultSpawnDistanceMagnification =
+        2.0f;
 
-    private const float MinimumNonNegativeValue = 0.0f;
+    private const float DefaultSpawnAngleMin =
+        100.0f;
 
-    private const int UnlimitedSpawnCount = 0;
+    private const float DefaultSpawnAngleMax =
+        270.0f;
 
-    private const string EnemyShipNamePrefix = "EnemyShip_";
+    private const float DefaultEnemyWorldY =
+        0.0f;
 
-    private const string ResultSceneName = "ResultScene";
+    private const float MinimumNonNegativeValue =
+        0.0f;
+
+    private const int UnlimitedEnemySpawnCount =
+        0;
+
+    private const string EnemyShipNamePrefix =
+        "EnemyShip_";
+
+    private const string ResultSceneName =
+        "ResultScene";
 
 
     // ============================================================
-    // センサー
+    // Sensor
     // ============================================================
 
     [Header("Sensor")]
 
     [SerializeField, Tooltip(
-        "Raspberry Piから受信したセンサーデータを管理するSensorRead")]
+        "Raspberry Piからの値を受信するSensorRead")]
     private SensorRead sensor;
 
 
     // ============================================================
-    // 通信システム
+    // Mission
     // ============================================================
 
-    [Header("Communication")]
+    [Header("Mission")]
 
     [SerializeField, Tooltip(
-        "通信ミッションを管理するCommunicationMissionManager。" +
-        "未設定の場合はシーン内から自動検索する")]
+        "通信ミッションを管理するManager")]
     private CommunicationMissionManager
         communicationMissionManager;
+
+
+    // ============================================================
+    // Ambient Contacts
+    // ============================================================
+
+    [Header("Surface Contacts")]
+
+    [SerializeField, Tooltip(
+        "Friendly / Neutralの生成を管理するSpawner")]
+    private AmbientContactSpawner
+        ambientContactSpawner;
+
+
+    [SerializeField, Tooltip(
+        "通信成功・失敗後に3種類の船をすべて入れ替える")]
+    private bool resetAllContactsAfterMission =
+        true;
 
 
     // ============================================================
@@ -60,121 +94,122 @@ public class GameManager : MonoBehaviour
     [Header("Game Time")]
 
     [SerializeField, Tooltip(
-        "ゲームの制限時間。" +
-        "0の場合は時間制限なし")]
-    [Min(MinimumNonNegativeValue)]
-    private float timeLimit =
+        "ゲーム制限時間。0なら無制限")]
+    private float time_limit =
         DefaultTimeLimit;
 
 
+    private float time_count =
+        MinimumNonNegativeValue;
+
+
     // ============================================================
-    // 敵艦Prefab
+    // Enemy
     // ============================================================
 
     [Header("Enemy Ship")]
 
     [SerializeField, Tooltip(
-        "生成する敵艦のPrefab。" +
-        "雪風Prefabなどを設定する")]
+        "雪風のEnemy用Prefab")]
     private GameObject enemyShipPrefab;
 
 
-    // ============================================================
-    // 敵艦スポーンタイミング
-    // ============================================================
-
-    [Header("Enemy Spawn Timing")]
-
     [SerializeField, Tooltip(
-        "ゲーム開始時にGameManagerから最初の敵艦を生成するか。" +
-        "Hierarchyに雪風を直接置いてテストする場合はOFF")]
-    private bool spawnFirstEnemyOnStart = false;
+        "ゲーム開始時に最初のEnemyを生成する")]
+    private bool spawnFirstEnemyOnStart =
+        true;
 
 
     [SerializeField, Tooltip(
-        "ゲーム開始後、最初の敵艦を生成するまでの時間")]
+        "ゲーム開始から最初のEnemyを生成するまでの時間")]
     [Min(MinimumNonNegativeValue)]
     private float initialSpawnDelay =
         DefaultInitialSpawnDelay;
 
 
     [SerializeField, Tooltip(
-        "1つの通信ミッション終了後、" +
-        "次の敵艦を生成するまでの待ち時間")]
+        "1ラウンド終了後、新しい3隻を生成するまでの時間")]
     [Min(MinimumNonNegativeValue)]
     private float nextSpawnDelay =
         DefaultNextSpawnDelay;
 
 
     [SerializeField, Tooltip(
-        "生成する敵艦数の上限。" +
-        "0の場合は制限なし")]
-    [Min(0)]
+        "ゲーム全体で生成可能なEnemy数。" +
+        "0なら無制限")]
+    [Min(UnlimitedEnemySpawnCount)]
     private int maximumEnemySpawnCount =
-        UnlimitedSpawnCount;
+        UnlimitedEnemySpawnCount;
 
 
     // ============================================================
-    // 敵艦スポーン位置
+    // Enemy配置
     // ============================================================
 
     [Header("Enemy Spawn Position")]
 
     [SerializeField, Tooltip(
-        "敵艦のスポーン距離を、" +
-        "DataManagerの敵艦回転半径の何倍にするか")]
+        "敵艦回転半径に対するスポーン距離倍率")]
     [Min(MinimumNonNegativeValue)]
     private float enemyShipSpawnDistanceMagnification =
         DefaultSpawnDistanceMagnification;
 
 
     [SerializeField, Tooltip(
-        "潜水艦の進行方向を0度とした、" +
-        "敵艦スポーン角度の最小値")]
+        "潜水艦正面を基準にした最小スポーン角度")]
     private float enemyShipSpawnAngleMin =
         DefaultSpawnAngleMin;
 
 
     [SerializeField, Tooltip(
-        "潜水艦の進行方向を0度とした、" +
-        "敵艦スポーン角度の最大値")]
+        "潜水艦正面を基準にした最大スポーン角度")]
     private float enemyShipSpawnAngleMax =
         DefaultSpawnAngleMax;
 
 
     [SerializeField, Tooltip(
-        "生成する敵艦のWorld Y座標。" +
-        "海面上の船の高さに合わせて設定する")]
+        "EnemyのワールドY座標")]
     private float enemyShipWorldY =
-        DefaultEnemyShipWorldY;
+        DefaultEnemyWorldY;
 
 
     // ============================================================
-    // デバッグ
+    // Debug
     // ============================================================
 
     [Header("Debug")]
 
-    [SerializeField, Tooltip(
-        "敵艦生成などの情報をConsoleに表示する")]
-    private bool debugLog = true;
+    [SerializeField]
+    private bool debugLog =
+        true;
 
 
     // ============================================================
     // 内部状態
     // ============================================================
 
-    private float timeCount = 0.0f;
+    // Enemy名の連番兼、総生成数
+    private int enemyShipCount =
+        0;
 
-    private int enemyShipCount = 0;
 
-    private bool isGameEnding = false;
+    // GameManager自身が生成したEnemy
+    private readonly List<GameObject>
+        spawnedEnemyShips =
+            new List<GameObject>();
 
-    // 通信成功・失敗後、
-    // CommunicationMissionManagerがSearchingへ戻るのを待つ
-    private bool waitingForNextEnemySpawn = false;
 
-    private Coroutine enemySpawnCoroutine;
+    private bool waitingForRoundReset =
+        false;
+
+
+    private bool roundResetInProgress =
+        false;
+
+
+    private Coroutine initialSpawnCoroutine;
+
+    private Coroutine roundResetCoroutine;
 
 
     // ============================================================
@@ -193,28 +228,81 @@ public class GameManager : MonoBehaviour
 
     private void Start()
     {
-        // =========================
-        // SensorRead取得
-        // =========================
+        ResolveReferences();
 
-        if (sensor == null)
+
+        DataManager.Initialize();
+
+
+        time_count =
+            MinimumNonNegativeValue;
+
+
+        SubscribeMissionEvents();
+
+
+        if (spawnFirstEnemyOnStart)
         {
-            sensor =
-                FindFirstObjectByType<SensorRead>();
+            initialSpawnCoroutine =
+                StartCoroutine(
+                    SpawnFirstEnemyRoutine()
+                );
         }
+    }
 
 
-        if (sensor == null)
+    // ============================================================
+    // Update
+    // ============================================================
+
+    private void Update()
+    {
+        UpdateGameTime();
+
+        UpdateSensorData();
+    }
+
+
+    // ============================================================
+    // Destroy
+    // ============================================================
+
+    private void OnDestroy()
+    {
+        UnsubscribeMissionEvents();
+
+
+        if (initialSpawnCoroutine != null)
         {
-            Debug.LogError(
-                "SensorReadが見つかりません。"
+            StopCoroutine(
+                initialSpawnCoroutine
             );
         }
 
 
-        // =========================
-        // CommunicationMissionManager取得
-        // =========================
+        if (roundResetCoroutine != null)
+        {
+            StopCoroutine(
+                roundResetCoroutine
+            );
+        }
+    }
+
+
+    // ============================================================
+    // 参照取得
+    // ============================================================
+
+    private void ResolveReferences()
+    {
+        if (sensor == null)
+        {
+            sensor =
+                FindFirstObjectByType<
+                    SensorRead
+                >();
+        }
+
 
         if (
             communicationMissionManager ==
@@ -228,6 +316,23 @@ public class GameManager : MonoBehaviour
         }
 
 
+        if (ambientContactSpawner == null)
+        {
+            ambientContactSpawner =
+                FindFirstObjectByType<
+                    AmbientContactSpawner
+                >();
+        }
+
+
+        if (sensor == null)
+        {
+            Debug.LogWarning(
+                "SensorReadが見つかりません。"
+            );
+        }
+
+
         if (
             communicationMissionManager ==
             null
@@ -237,121 +342,22 @@ public class GameManager : MonoBehaviour
                 "CommunicationMissionManagerが見つかりません。"
             );
         }
-        else
+
+
+        if (ambientContactSpawner == null)
         {
-            SubscribeCommunicationEvents();
-        }
-
-
-        // =========================
-        // DataManager初期化
-        // =========================
-
-        DataManager.Initialize();
-
-
-        // =========================
-        // 内部状態初期化
-        // =========================
-
-        timeCount =
-            0.0f;
-
-        enemyShipCount =
-            0;
-
-        isGameEnding =
-            false;
-
-        waitingForNextEnemySpawn =
-            false;
-
-
-        // =========================
-        // 最初の敵艦
-        // =========================
-
-        if (spawnFirstEnemyOnStart)
-        {
-            ScheduleEnemySpawn(
-                initialSpawnDelay
+            Debug.LogWarning(
+                "AmbientContactSpawnerが見つかりません。"
             );
         }
     }
 
 
     // ============================================================
-    // Update
+    // Mission Event
     // ============================================================
 
-    private void Update()
-    {
-        if (isGameEnding)
-        {
-            return;
-        }
-
-
-        // =========================
-        // 経過時間
-        // =========================
-
-        timeCount +=
-            Time.deltaTime;
-
-
-        // =========================
-        // センサー更新
-        // =========================
-
-        UpdateSensorData();
-
-
-        // =========================
-        // ゲーム終了
-        // =========================
-
-        if (
-            timeLimit >
-            MinimumNonNegativeValue &&
-            timeCount >=
-            timeLimit
-        )
-        {
-            EndGame();
-        }
-    }
-
-
-    // ============================================================
-    // OnDestroy
-    // ============================================================
-
-    private void OnDestroy()
-    {
-        UnsubscribeCommunicationEvents();
-
-
-        if (
-            enemySpawnCoroutine !=
-            null
-        )
-        {
-            StopCoroutine(
-                enemySpawnCoroutine
-            );
-
-            enemySpawnCoroutine =
-                null;
-        }
-    }
-
-
-    // ============================================================
-    // CommunicationMissionManagerイベント登録
-    // ============================================================
-
-    private void SubscribeCommunicationEvents()
+    private void SubscribeMissionEvents()
     {
         if (
             communicationMissionManager ==
@@ -373,7 +379,7 @@ public class GameManager : MonoBehaviour
     }
 
 
-    private void UnsubscribeCommunicationEvents()
+    private void UnsubscribeMissionEvents()
     {
         if (
             communicationMissionManager ==
@@ -396,60 +402,49 @@ public class GameManager : MonoBehaviour
 
 
     // ============================================================
-    // 通信結果
+    // 正誤判定終了
     // ============================================================
 
-    /// <summary>
-    /// 通信成功・失敗の判定が完了した時に呼ばれる。
-    ///
-    /// この時点ではCommunicationMissionManagerが
-    /// Success / Failed状態なので、
-    /// すぐには次の敵艦を生成しない。
-    /// </summary>
     private void HandleMissionEvaluated(
-        bool success
+        bool wasSuccessful
     )
     {
-        if (isGameEnding)
+        if (!resetAllContactsAfterMission)
         {
             return;
         }
 
 
-        waitingForNextEnemySpawn =
+        // 成功・失敗を問わず
+        // 次回Searching時に海上接触をリセット
+        waitingForRoundReset =
             true;
 
 
         if (debugLog)
         {
             Debug.Log(
-                success
-                    ? "通信成功。次の敵艦生成を待機します。"
-                    : "通信失敗。次の敵艦生成を待機します。"
+                "通信結果: " +
+                (
+                    wasSuccessful
+                        ? "成功"
+                        : "失敗"
+                ) +
+                " / 次のラウンドで全船を更新します。"
             );
         }
     }
 
 
     // ============================================================
-    // 通信状態変更
+    // Mission State
     // ============================================================
 
-    /// <summary>
-    /// CommunicationMissionManagerがSearchingへ戻ったら、
-    /// 次の敵艦のスポーン予約を行う。
-    /// </summary>
     private void HandleMissionStateChanged(
         CommunicationMissionManager.MissionState
             newState
     )
     {
-        if (isGameEnding)
-        {
-            return;
-        }
-
-
         if (
             newState !=
             CommunicationMissionManager
@@ -461,24 +456,424 @@ public class GameManager : MonoBehaviour
         }
 
 
-        if (!waitingForNextEnemySpawn)
+        if (!waitingForRoundReset)
         {
             return;
         }
 
 
-        waitingForNextEnemySpawn =
-            false;
+        if (roundResetInProgress)
+        {
+            return;
+        }
 
 
-        ScheduleEnemySpawn(
-            nextSpawnDelay
-        );
+        roundResetCoroutine =
+            StartCoroutine(
+                ResetRoundRoutine()
+            );
     }
 
 
     // ============================================================
-    // センサー値更新
+    // ラウンドリセット
+    // ============================================================
+
+    private IEnumerator ResetRoundRoutine()
+    {
+        waitingForRoundReset =
+            false;
+
+
+        roundResetInProgress =
+            true;
+
+
+        // ========================================================
+        // 現在の3種類の船を削除
+        // ========================================================
+
+        ClearCurrentRoundContacts();
+
+
+        // Destroy処理をUnityへ反映するため
+        // 1フレーム待つ
+        yield return null;
+
+
+        // ========================================================
+        // 次ラウンドまで待機
+        // ========================================================
+
+        if (
+            nextSpawnDelay >
+            MinimumNonNegativeValue
+        )
+        {
+            yield return
+                new WaitForSeconds(
+                    nextSpawnDelay
+                );
+        }
+
+
+        // ========================================================
+        // 新しいラウンド生成
+        // ========================================================
+
+        SpawnNewRound();
+
+
+        roundResetInProgress =
+            false;
+
+
+        roundResetCoroutine =
+            null;
+    }
+
+
+    // ============================================================
+    // 現在ラウンド削除
+    // ============================================================
+
+    private void ClearCurrentRoundContacts()
+    {
+        int enemyRemoved =
+            ClearSpawnedEnemyShips();
+
+
+        int ambientRemoved =
+            0;
+
+
+        if (ambientContactSpawner != null)
+        {
+            ambientRemoved =
+                ambientContactSpawner
+                    .ClearSpawnedContacts();
+        }
+
+
+        if (debugLog)
+        {
+            Debug.Log(
+                "海上接触をリセットしました。" +
+                " Enemy=" +
+                enemyRemoved +
+                " / Friendly・Neutral=" +
+                ambientRemoved
+            );
+        }
+    }
+
+
+    // ============================================================
+    // Enemy全削除
+    // ============================================================
+
+    private int ClearSpawnedEnemyShips()
+    {
+        CleanupEnemyShipList();
+
+
+        int removedCount =
+            0;
+
+
+        for (
+            int index = spawnedEnemyShips.Count - 1;
+            index >= 0;
+            index--
+        )
+        {
+            GameObject enemyShip =
+                spawnedEnemyShips[index];
+
+
+            if (enemyShip == null)
+            {
+                continue;
+            }
+
+
+            // 古いDataManager登録も消しておく
+            DataManager.DeleteEnemyShip(
+                enemyShip.name
+            );
+
+
+            // SurfaceContactから即時登録解除
+            enemyShip.SetActive(
+                false
+            );
+
+
+            Destroy(
+                enemyShip
+            );
+
+
+            removedCount++;
+        }
+
+
+        spawnedEnemyShips.Clear();
+
+
+        return
+            removedCount;
+    }
+
+
+    // ============================================================
+    // Enemy List掃除
+    // ============================================================
+
+    private void CleanupEnemyShipList()
+    {
+        for (
+            int index = spawnedEnemyShips.Count - 1;
+            index >= 0;
+            index--
+        )
+        {
+            if (
+                spawnedEnemyShips[index] ==
+                null
+            )
+            {
+                spawnedEnemyShips
+                    .RemoveAt(
+                        index
+                    );
+            }
+        }
+    }
+
+
+    // ============================================================
+    // 新しいラウンド
+    // ============================================================
+
+    private void SpawnNewRound()
+    {
+        // 次のEnemyを生成できないなら、
+        // 新しいラウンド自体を開始しない
+        if (!CanSpawnEnemyShip())
+        {
+            if (debugLog)
+            {
+                Debug.Log(
+                    "Enemy生成上限に到達したため、" +
+                    "新しいラウンドを生成しません。"
+                );
+            }
+
+
+            return;
+        }
+
+
+        // Enemy
+        bool enemySpawned =
+            SpawnEnemyShip();
+
+
+        // Friendly / Neutral
+        if (ambientContactSpawner != null)
+        {
+            ambientContactSpawner
+                .SpawnInitialContacts();
+        }
+
+
+        if (debugLog)
+        {
+            Debug.Log(
+                enemySpawned
+                    ? "新しい3種類の海上接触を生成しました。"
+                    : "Enemyの生成に失敗しました。"
+            );
+        }
+    }
+
+
+    // ============================================================
+    // 最初のEnemy
+    // ============================================================
+
+    private IEnumerator SpawnFirstEnemyRoutine()
+    {
+        if (
+            initialSpawnDelay >
+            MinimumNonNegativeValue
+        )
+        {
+            yield return
+                new WaitForSeconds(
+                    initialSpawnDelay
+                );
+        }
+
+
+        SpawnEnemyShip();
+
+
+        initialSpawnCoroutine =
+            null;
+    }
+
+
+    // ============================================================
+    // Enemy生成可能か
+    // ============================================================
+
+    private bool CanSpawnEnemyShip()
+    {
+        if (
+            maximumEnemySpawnCount ==
+            UnlimitedEnemySpawnCount
+        )
+        {
+            return true;
+        }
+
+
+        return
+            enemyShipCount <
+            maximumEnemySpawnCount;
+    }
+
+
+    // ============================================================
+    // Enemy生成
+    // ============================================================
+
+    private bool SpawnEnemyShip()
+    {
+        if (!CanSpawnEnemyShip())
+        {
+            return false;
+        }
+
+
+        if (enemyShipPrefab == null)
+        {
+            Debug.LogError(
+                "Enemy Ship Prefabが設定されていません。"
+            );
+
+
+            return false;
+        }
+
+
+        float submarineRotation =
+            DataManager
+                .GetSubmarineRotation();
+
+
+        float spawnAngleY =
+            Random.Range(
+                submarineRotation +
+                enemyShipSpawnAngleMin,
+
+                submarineRotation +
+                enemyShipSpawnAngleMax
+            );
+
+
+        float spawnDistance =
+            DataManager
+                .GetEnemyShipRotateRadius()
+            *
+            enemyShipSpawnDistanceMagnification;
+
+
+        Vector3 spawnDirection =
+            Quaternion.Euler(
+                MinimumNonNegativeValue,
+                spawnAngleY,
+                MinimumNonNegativeValue
+            )
+            *
+            Vector3.forward;
+
+
+        Vector3 spawnPosition =
+            DataManager
+                .GetSubmarinePosition()
+            +
+            spawnDirection *
+            spawnDistance;
+
+
+        spawnPosition.y =
+            enemyShipWorldY;
+
+
+        Quaternion spawnRotation =
+            Quaternion.Euler(
+                MinimumNonNegativeValue,
+                spawnAngleY,
+                MinimumNonNegativeValue
+            );
+
+
+        GameObject enemyShip =
+            Instantiate(
+                enemyShipPrefab,
+                spawnPosition,
+                spawnRotation
+            );
+
+
+        if (enemyShip == null)
+        {
+            return false;
+        }
+
+
+        enemyShipCount++;
+
+
+        string enemyShipName =
+            EnemyShipNamePrefix +
+            enemyShipCount;
+
+
+        enemyShip.name =
+            enemyShipName;
+
+
+        DataManager.AddEnemyShip(
+            enemyShipName
+        );
+
+
+        spawnedEnemyShips.Add(
+            enemyShip
+        );
+
+
+        if (debugLog)
+        {
+            Debug.Log(
+                "Enemyを生成しました: " +
+                enemyShipName +
+                " / Position=" +
+                spawnPosition
+            );
+        }
+
+
+        return true;
+    }
+
+
+    // ============================================================
+    // Sensor
     // ============================================================
 
     private void UpdateSensorData()
@@ -543,321 +938,31 @@ public class GameManager : MonoBehaviour
 
 
     // ============================================================
-    // 敵艦生成予約
+    // ゲーム時間
     // ============================================================
 
-    private void ScheduleEnemySpawn(
-        float delay
-    )
+    private void UpdateGameTime()
     {
-        if (isGameEnding)
-        {
-            return;
-        }
-
-
-        if (!CanSpawnMoreEnemies())
-        {
-            if (debugLog)
-            {
-                Debug.Log(
-                    "敵艦の最大生成数に到達しました。"
-                );
-            }
-
-            return;
-        }
-
-
-        // 二重予約防止
         if (
-            enemySpawnCoroutine !=
-            null
+            time_limit ==
+            UnlimitedTimeValue
         )
         {
             return;
         }
 
 
-        enemySpawnCoroutine =
-            StartCoroutine(
-                SpawnEnemyAfterDelay(
-                    delay
-                )
-            );
-    }
-
-
-    // ============================================================
-    // 敵艦生成待機
-    // ============================================================
-
-    private IEnumerator SpawnEnemyAfterDelay(
-        float delay
-    )
-    {
-        if (
-            delay >
-            MinimumNonNegativeValue
-        )
-        {
-            yield return
-                new WaitForSeconds(
-                    delay
-                );
-        }
-
-
-        if (!isGameEnding)
-        {
-            SpawnEnemyShip();
-        }
-
-
-        enemySpawnCoroutine =
-            null;
-    }
-
-
-    // ============================================================
-    // 生成数確認
-    // ============================================================
-
-    private bool CanSpawnMoreEnemies()
-    {
-        // 0なら無制限
-        if (
-            maximumEnemySpawnCount ==
-            UnlimitedSpawnCount
-        )
-        {
-            return true;
-        }
-
-
-        return
-            enemyShipCount <
-            maximumEnemySpawnCount;
-    }
-
-
-    // ============================================================
-    // 敵艦スポーン
-    // ============================================================
-
-    private bool SpawnEnemyShip()
-    {
-        if (enemyShipPrefab == null)
-        {
-            Debug.LogError(
-                "Enemy Ship Prefabが設定されていません。"
-            );
-
-            return false;
-        }
-
-
-        if (!CanSpawnMoreEnemies())
-        {
-            return false;
-        }
-
-
-        // =========================
-        // 潜水艦の現在方向
-        // =========================
-
-        float submarineRotation =
-            DataManager
-                .GetSubmarineRotation();
-
-
-        // =========================
-        // スポーン角度
-        // =========================
-
-        float relativeSpawnAngle =
-            Random.Range(
-                enemyShipSpawnAngleMin,
-                enemyShipSpawnAngleMax
-            );
-
-
-        float worldSpawnAngle =
-            submarineRotation +
-            relativeSpawnAngle;
-
-
-        // =========================
-        // 敵船の向き
-        // =========================
-
-        Quaternion spawnRotation =
-            Quaternion.Euler(
-                0.0f,
-                worldSpawnAngle,
-                0.0f
-            );
-
-
-        // =========================
-        // スポーン距離
-        // =========================
-
-        float spawnDistance =
-            DataManager
-                .GetEnemyShipRotateRadius()
-            *
-            enemyShipSpawnDistanceMagnification;
-
-
-        // =========================
-        // スポーン方向
-        // =========================
-
-        Vector3 spawnDirection =
-            Quaternion.Euler(
-                0.0f,
-                worldSpawnAngle,
-                0.0f
-            )
-            *
-            Vector3.forward;
-
-
-        // =========================
-        // スポーン位置
-        // =========================
-
-        Vector3 submarinePosition =
-            DataManager
-                .GetSubmarinePosition();
-
-
-        Vector3 spawnPosition =
-            submarinePosition +
-            spawnDirection *
-            spawnDistance;
-
-
-        // 潜水艦は水中にいるため、
-        // 敵艦の高さは別に設定する
-        spawnPosition.y =
-            enemyShipWorldY;
-
-
-        // =========================
-        // 敵船生成
-        // =========================
-
-        GameObject enemyShip =
-            Instantiate(
-                enemyShipPrefab,
-                spawnPosition,
-                spawnRotation
-            );
-
-
-        if (enemyShip == null)
-        {
-            Debug.LogError(
-                "敵艦の生成に失敗しました。"
-            );
-
-            return false;
-        }
-
-
-        // =========================
-        // 名前
-        // =========================
-
-        enemyShipCount++;
-
-
-        string enemyShipName =
-            EnemyShipNamePrefix +
-            enemyShipCount;
-
-
-        enemyShip.name =
-            enemyShipName;
-
-
-        // =========================
-        // DataManager登録
-        // =========================
-
-        bool registered =
-            DataManager.AddEnemyShip(
-                enemyShipName
-            );
+        time_count +=
+            Time.deltaTime;
 
 
         if (
-            !registered &&
-            debugLog
+            time_count <
+            time_limit
         )
-        {
-            Debug.LogWarning(
-                "DataManagerへの敵艦登録に失敗しました: " +
-                enemyShipName
-            );
-        }
-
-
-        // =========================
-        // デバッグ
-        // =========================
-
-        if (debugLog)
-        {
-            Debug.Log(
-                "次の敵艦を生成しました: " +
-                enemyShipName +
-                " / Position = " +
-                spawnPosition
-            );
-        }
-
-
-        return true;
-    }
-
-
-    // ============================================================
-    // ゲーム終了
-    // ============================================================
-
-    private void EndGame()
-    {
-        if (isGameEnding)
         {
             return;
         }
-
-
-        isGameEnding =
-            true;
-
-
-        if (
-            enemySpawnCoroutine !=
-            null
-        )
-        {
-            StopCoroutine(
-                enemySpawnCoroutine
-            );
-
-            enemySpawnCoroutine =
-                null;
-        }
-
-
-        Debug.Log(
-            "Time's up! Game Over."
-        );
 
 
         SceneManager.LoadScene(
@@ -867,7 +972,7 @@ public class GameManager : MonoBehaviour
 
 
     // ============================================================
-    // Inspector値検証
+    // Inspector値
     // ============================================================
 
     private void OnValidate()
@@ -878,11 +983,14 @@ public class GameManager : MonoBehaviour
 
     private void ValidateSettings()
     {
-        timeLimit =
-            Mathf.Max(
-                MinimumNonNegativeValue,
-                timeLimit
-            );
+        if (
+            time_limit <
+            MinimumNonNegativeValue
+        )
+        {
+            time_limit =
+                DefaultTimeLimit;
+        }
 
 
         initialSpawnDelay =
@@ -899,6 +1007,13 @@ public class GameManager : MonoBehaviour
             );
 
 
+        maximumEnemySpawnCount =
+            Mathf.Max(
+                UnlimitedEnemySpawnCount,
+                maximumEnemySpawnCount
+            );
+
+
         enemyShipSpawnDistanceMagnification =
             Mathf.Max(
                 MinimumNonNegativeValue,
@@ -906,20 +1021,12 @@ public class GameManager : MonoBehaviour
             );
 
 
-        maximumEnemySpawnCount =
-            Mathf.Max(
-                0,
-                maximumEnemySpawnCount
-            );
-
-
-        // 最大角度と最小角度が逆なら入れ替える
         if (
             enemyShipSpawnAngleMax <
             enemyShipSpawnAngleMin
         )
         {
-            float temporaryAngle =
+            float temporary =
                 enemyShipSpawnAngleMin;
 
 
@@ -928,7 +1035,7 @@ public class GameManager : MonoBehaviour
 
 
             enemyShipSpawnAngleMax =
-                temporaryAngle;
+                temporary;
         }
     }
 }

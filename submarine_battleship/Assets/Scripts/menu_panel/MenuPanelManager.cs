@@ -3,53 +3,95 @@ using UnityEngine.InputSystem;
 
 public class MenuPanelManager : MonoBehaviour
 {
-    // =========================
+    // ============================================================
+    // 定数
+    // ============================================================
+
+    private const float DefaultGameTimeScale =
+        1.0f;
+
+    private const float MinimumGameTimeScale =
+        0.0f;
+
+    private const float MaximumGameTimeScale =
+        100.0f;
+
+
+    // ============================================================
     // パネル
-    // =========================
+    // ============================================================
 
-    [SerializeField, Tooltip("管理者操作用のパネル")]
-    private GameObject administratorMenuPanel;
-
-
-    [SerializeField, Tooltip("ソナー表示用のパネル")]
-    private GameObject sonarPanel;
-
-
-    // =========================
-    // ソナー設定
-    // =========================
+    [Header("Panels")]
 
     [SerializeField, Tooltip(
-        "falseの場合、潜水艦が水中の時だけソナーを開ける")]
-    private bool sonarPanelUnderwaterCanOpen = false;
+        "管理者操作用のパネル")]
+    private GameObject
+        administratorMenuPanel;
 
 
-    // =========================
-    // パネル状態
-    // =========================
-
-    private bool isAdministratorMenuOpen = false;
-    private bool isSonarPanelOpen = false;
+    [SerializeField, Tooltip(
+        "ソナー表示用のパネル")]
+    private GameObject
+        sonarPanel;
 
 
-    // =========================
-    // static状態
-    // =========================
+    // ============================================================
+    // ソナー
+    // ============================================================
 
-    private static float gameTimeScale = 1f;
+    [Header("Sonar")]
 
-    private static bool isAdministratorMenuOpenStatic = false;
+    [SerializeField, Tooltip(
+        "ONの場合、潜望鏡の高さに関係なくソナーを使用可能。" +
+        "通常ゲームではOFF推奨")]
+    private bool sonarPanelUnderwaterCanOpen =
+        false;
 
 
-    // =========================
+    [SerializeField, Tooltip(
+        "Spaceキーをソナーのテスト入力として使用する")]
+    private bool allowKeyboardSonarInput =
+        true;
+
+
+    // ============================================================
+    // 状態
+    // ============================================================
+
+    private bool isAdministratorMenuOpen =
+        false;
+
+    private bool isSonarPanelOpen =
+        false;
+
+
+    // ============================================================
+    // static
+    // ============================================================
+
+    private static float gameTimeScale =
+        DefaultGameTimeScale;
+
+
+    private static bool
+        isAdministratorMenuOpenStatic =
+            false;
+
+
+    // ============================================================
     // Start
-    // =========================
+    // ============================================================
 
-    void Start()
+    private void Start()
     {
-        SetAdministratorMenu(false);
+        SetAdministratorMenu(
+            false
+        );
 
-        SetSonarPanel(false);
+
+        SetSonarPanel(
+            false
+        );
 
 
         Time.timeScale =
@@ -57,34 +99,35 @@ public class MenuPanelManager : MonoBehaviour
     }
 
 
-    // =========================
+    // ============================================================
     // Update
-    // =========================
+    // ============================================================
 
-    void Update()
+    private void Update()
     {
-        // Escapeキーで管理者メニューを開閉
         if (
             Keyboard.current != null &&
-            Keyboard.current.escapeKey.wasPressedThisFrame
+            Keyboard.current
+                .escapeKey
+                .wasPressedThisFrame
         )
         {
             ToggleAdministratorMenu();
         }
 
 
-        // ソナーパネル更新
         UpdateSonarPanel();
     }
 
 
     // ============================================================
-    // Game Time Scale
+    // TimeScale
     // ============================================================
 
     public static float GetGameTimeScale()
     {
-        return gameTimeScale;
+        return
+            gameTimeScale;
     }
 
 
@@ -92,11 +135,14 @@ public class MenuPanelManager : MonoBehaviour
         float value
     )
     {
-        if (value < 0f)
+        if (
+            value <
+            MinimumGameTimeScale
+        )
         {
             Debug.LogError(
-                "TimeScaleには0以上の値を設定してください: "
-                + value
+                "TimeScaleには0以上の値を設定してください: " +
+                value
             );
 
             return false;
@@ -106,13 +152,11 @@ public class MenuPanelManager : MonoBehaviour
         gameTimeScale =
             Mathf.Clamp(
                 value,
-                0f,
-                100f
+                MinimumGameTimeScale,
+                MaximumGameTimeScale
             );
 
 
-        // 管理者メニューが開いていないときだけ
-        // 実際に反映
         if (!isAdministratorMenuOpenStatic)
         {
             Time.timeScale =
@@ -125,28 +169,33 @@ public class MenuPanelManager : MonoBehaviour
 
 
     // ============================================================
-    // 管理者メニュー
+    // 管理者メニュー状態
     // ============================================================
 
-    public static bool GetIsAdministratorMenuOpen()
+    public static bool
+        GetIsAdministratorMenuOpen()
     {
-        return isAdministratorMenuOpenStatic;
+        return
+            isAdministratorMenuOpenStatic;
     }
 
 
     // ============================================================
-    // ソナー設定
+    // Sonar設定互換API
     // ============================================================
 
-    public bool GetSonarPanelUnderwaterCanOpen()
+    public bool
+        GetSonarPanelUnderwaterCanOpen()
     {
-        return sonarPanelUnderwaterCanOpen;
+        return
+            sonarPanelUnderwaterCanOpen;
     }
 
 
-    public void SetSonarPanelUnderwaterCanOpen(
-        bool canOpen
-    )
+    public void
+        SetSonarPanelUnderwaterCanOpen(
+            bool canOpen
+        )
     {
         sonarPanelUnderwaterCanOpen =
             canOpen;
@@ -154,34 +203,32 @@ public class MenuPanelManager : MonoBehaviour
 
 
     // ============================================================
-    // 管理者メニュー開閉
+    // 管理者メニュー
     // ============================================================
 
     private void ToggleAdministratorMenu()
     {
-        isAdministratorMenuOpen =
+        bool newState =
             !isAdministratorMenuOpen;
 
 
         SetAdministratorMenu(
-            isAdministratorMenuOpen
+            newState
         );
 
 
-        if (isAdministratorMenuOpen)
+        if (newState)
         {
-            // 管理者メニューを開いたら、
-            // ソナーは強制的に閉じる
-            SetSonarPanel(false);
+            SetSonarPanel(
+                false
+            );
 
 
-            // 管理者メニュー中は一時停止
-            Time.timeScale = 0f;
+            Time.timeScale =
+                MinimumGameTimeScale;
         }
         else
         {
-            // 閉じたら設定済みの
-            // TimeScaleに戻す
             Time.timeScale =
                 gameTimeScale;
         }
@@ -189,7 +236,7 @@ public class MenuPanelManager : MonoBehaviour
 
 
     // ============================================================
-    // ソナーパネル更新
+    // Sonar
     // ============================================================
 
     private void UpdateSonarPanel()
@@ -200,102 +247,91 @@ public class MenuPanelManager : MonoBehaviour
         }
 
 
-        // 管理者メニューが開いている間は、
-        // SpaceやButton1を押しても
-        // ソナーを表示しない
+        // 管理者メニュー中は使用不可
         if (isAdministratorMenuOpen)
         {
-            SetSonarPanel(false);
+            SetSonarPanel(
+                false
+            );
 
             return;
         }
 
 
-        // =========================
-        // 入力取得
-        // =========================
+        // 潜望鏡状態
+        if (!CanOpenSonar())
+        {
+            SetSonarPanel(
+                false
+            );
 
-        bool isSpacePressed =
-            IsSpacePressed();
+            return;
+        }
 
 
-        bool isSonarButtonPressed =
+        bool sonarButtonPressed =
             IsSonarButtonPressed();
 
 
-        bool isInputPressed =
-            isSpacePressed ||
-            isSonarButtonPressed;
+        bool keyboardPressed =
+            allowKeyboardSonarInput &&
+            IsSpacePressed();
 
 
-        // =========================
-        // ソナーを開ける深度か確認
-        // =========================
-
-        if (!CanOpenSonarBySubmarinePosition())
-        {
-            SetSonarPanel(false);
-
-            return;
-        }
+        bool shouldOpen =
+            sonarButtonPressed ||
+            keyboardPressed;
 
 
-        // Spaceキーを押している間、
-        // またはButton1を押している間だけ表示
         SetSonarPanel(
-            isInputPressed
+            shouldOpen
         );
     }
 
 
     // ============================================================
-    // Spaceキー
+    // Sonar使用可能か
     // ============================================================
 
-    private bool IsSpacePressed()
+    private bool CanOpenSonar()
     {
-        return
-            Keyboard.current != null &&
-            Keyboard.current.spaceKey.isPressed;
-    }
-
-
-    // ============================================================
-    // ソナーボタン
-    // ============================================================
-
-    private bool IsSonarButtonPressed()
-    {
-        // Button1をソナー用ボタンとして使用
-        return
-            DataManager.GetSensorButton1() == 1;
-    }
-
-
-    // ============================================================
-    // ソナーを開ける深度か
-    // ============================================================
-
-    private bool CanOpenSonarBySubmarinePosition()
-    {
-        // trueなら、
-        // 潜水艦が水上でも水中でも
-        // ソナーを開ける
+        // 管理者設定などで
+        // 高さ制限を無効化
         if (sonarPanelUnderwaterCanOpen)
         {
             return true;
         }
 
 
-        // falseなら、
-        // 潜水艦が水中、
-        // つまりY座標が0未満の時だけ開ける
-        Vector3 submarinePosition =
-            DataManager.GetSubmarinePosition();
-
-
+        // 通常ゲームでは
+        // 潜望鏡が完全格納されている時だけ
         return
-            submarinePosition.y < 0f;
+            DataManager
+                .GetIsPeriscopeFullyLowered();
+    }
+
+
+    // ============================================================
+    // Input
+    // ============================================================
+
+    private bool IsSpacePressed()
+    {
+        return
+            Keyboard.current != null &&
+            Keyboard.current
+                .spaceKey
+                .isPressed;
+    }
+
+
+    private bool IsSonarButtonPressed()
+    {
+        return
+            DataManager
+                .GetSensorButton1()
+            ==
+            1;
     }
 
 
@@ -315,17 +351,21 @@ public class MenuPanelManager : MonoBehaviour
             isOpen;
 
 
-        if (administratorMenuPanel != null)
+        if (
+            administratorMenuPanel !=
+            null
+        )
         {
-            administratorMenuPanel.SetActive(
-                isOpen
-            );
+            administratorMenuPanel
+                .SetActive(
+                    isOpen
+                );
         }
     }
 
 
     // ============================================================
-    // ソナーパネル設定
+    // Sonar Panel
     // ============================================================
 
     private void SetSonarPanel(
@@ -336,11 +376,34 @@ public class MenuPanelManager : MonoBehaviour
             isOpen;
 
 
-        if (sonarPanel != null)
+        if (
+            sonarPanel != null &&
+            sonarPanel.activeSelf !=
+            isOpen
+        )
         {
             sonarPanel.SetActive(
                 isOpen
             );
         }
+    }
+
+
+    // ============================================================
+    // 状態取得
+    // ============================================================
+
+    public bool GetIsSonarPanelOpen()
+    {
+        return
+            isSonarPanelOpen;
+    }
+
+
+    public void CloseSonarPanel()
+    {
+        SetSonarPanel(
+            false
+        );
     }
 }
