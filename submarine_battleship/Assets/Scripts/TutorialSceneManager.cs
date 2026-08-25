@@ -29,11 +29,6 @@ public class TutorialSceneManager : MonoBehaviour
     // Inspector設定
     // =========================================================
 
-    [Header("センサ")]
-    [SerializeField, Tooltip("シリアル通信を行うSensorRead")]
-    private SensorRead sensorRead;
-
-
     [Header("会話UI")]
     [SerializeField, Tooltip("会話パネル全体")]
     private GameObject conversationPanel;
@@ -91,13 +86,6 @@ public class TutorialSceneManager : MonoBehaviour
     [SerializeField, Tooltip("このY座標以上で海上と判定")]
     private float raisedYThreshold = 0.1f;
 
-    [SerializeField, Tooltip("潜望鏡を沈めるencode値")]
-    private int encoderValueForLowering = -1;
-
-    [SerializeField, Tooltip("潜望鏡を上げるencode値")]
-    private int encoderValueForRaising = 1;
-
-
     [Header("回転操作")]
     [SerializeField, Tooltip("回転操作成功とする合計角度")]
     [Min(1f)]
@@ -142,7 +130,7 @@ public class TutorialSceneManager : MonoBehaviour
     private bool isTyping;
     private int totalCharacterCount;
 
-    private int previousTactileSwitch;
+    private int previousButton1;
 
     private float lastYaw;
     private float accumulatedRotation;
@@ -203,7 +191,7 @@ public class TutorialSceneManager : MonoBehaviour
 
         "次は、潜望鏡の高さを変更する。",
 
-        "つまみを右に回し、潜望鏡を水中へ沈めてくれ。"
+        "Button3を押し続け、潜望鏡を水中へ沈めてくれ。"
     };
 
 
@@ -217,9 +205,9 @@ public class TutorialSceneManager : MonoBehaviour
 
         "ソナーには、周囲にいる船のおおよその位置が表示される。",
 
-        "スイッチを押している間、ソナー画面が表示される。",
+        "Button1を押している間、ソナー画面が表示される。",
 
-        "ボタンを押し続けて、周囲を確認してくれ。"
+        "Button1を押し続けて、周囲を確認してくれ。"
     };
 
 
@@ -235,7 +223,7 @@ public class TutorialSceneManager : MonoBehaviour
 
         "続いて、潜望鏡を海上へ戻す。",
 
-        "つまみを左に回し、潜望鏡を上昇させてくれ。"
+        "Button2を押し続け、潜望鏡を上昇させてくれ。"
     };
 
 
@@ -322,15 +310,10 @@ public class TutorialSceneManager : MonoBehaviour
             tutorialEnemyShip.SetDetectionEnabled(false);
         }
 
-        if (sensorRead != null)
-        {
-            previousTactileSwitch =
-                sensorRead.GetTactileSwitch();
-
-            DataManager.SetSensorYaw(
-                sensorRead.GetYaw()
-            );
-        }
+        // Button1の現在状態を初期値として保持
+        // （押しっぱなしの状態で開始した場合の誤検出を防ぐ）
+        previousButton1 =
+            DataManager.GetSensorButton1();
 
         UpdatePeriscopeData();
 
@@ -343,7 +326,6 @@ public class TutorialSceneManager : MonoBehaviour
 
     private void Update()
     {
-        UpdateSensorData();
         UpdatePeriscopeData();
 
         // 下向き三角形を点滅させる
@@ -449,12 +431,6 @@ public class TutorialSceneManager : MonoBehaviour
 
     private void FindReferences()
     {
-        if (sensorRead == null)
-        {
-            sensorRead =
-                FindFirstObjectByType<SensorRead>();
-        }
-
         if (periscopeTransform == null)
         {
             Submarine submarine =
@@ -522,19 +498,6 @@ public class TutorialSceneManager : MonoBehaviour
 
         SetNextDialogueIndicatorVisible(false);
         HideMission();
-    }
-
-
-    private void UpdateSensorData()
-    {
-        if (sensorRead == null)
-        {
-            return;
-        }
-
-        DataManager.SetSensorYaw(
-            sensorRead.GetYaw()
-        );
     }
 
 
@@ -671,20 +634,17 @@ public class TutorialSceneManager : MonoBehaviour
     {
         bool pressed = false;
 
-        if (sensorRead != null)
+        int currentButton1 =
+            DataManager.GetSensorButton1();
+
+        if (currentButton1 == 1 &&
+            previousButton1 != 1)
         {
-            int currentTactileSwitch =
-                sensorRead.GetTactileSwitch();
-
-            if (currentTactileSwitch == 1 &&
-                previousTactileSwitch != 1)
-            {
-                pressed = true;
-            }
-
-            previousTactileSwitch =
-                currentTactileSwitch;
+            pressed = true;
         }
+
+        previousButton1 =
+            currentButton1;
 
         if (Keyboard.current != null &&
             Keyboard.current.enterKey
@@ -934,37 +894,15 @@ public class TutorialSceneManager : MonoBehaviour
         accumulatedRotation =
             0f;
 
-        if (sensorRead != null)
-        {
-            lastYaw =
-                sensorRead.GetYaw();
-        }
-        else if (periscopeTransform != null)
-        {
-            lastYaw =
-                periscopeTransform.eulerAngles.y;
-        }
+        lastYaw =
+            DataManager.GetSensorYaw();
     }
 
 
     private void CheckPeriscopeRotation()
     {
-        float currentYaw;
-
-        if (sensorRead != null)
-        {
-            currentYaw =
-                sensorRead.GetYaw();
-        }
-        else if (periscopeTransform != null)
-        {
-            currentYaw =
-                periscopeTransform.eulerAngles.y;
-        }
-        else
-        {
-            return;
-        }
+        float currentYaw =
+            DataManager.GetSensorYaw();
 
         float delta =
             Mathf.Abs(
@@ -1012,7 +950,7 @@ public class TutorialSceneManager : MonoBehaviour
 
         ShowMission(
             2,
-            "つまみを右に回して潜望鏡を水中へ沈めろ"
+            "Button3を押し続けて潜望鏡を水中へ沈めろ"
         );
     }
 
@@ -1028,11 +966,11 @@ public class TutorialSceneManager : MonoBehaviour
                 periscopeTransform.position.y <=
                 underwaterYThreshold;
         }
-        else if (sensorRead != null)
+        else
         {
+            // Button3を押している間は下降入力
             completed =
-                sensorRead.GetEncode() ==
-                encoderValueForLowering;
+                DataManager.GetSensorButton3() == 1;
         }
 
         if (completed)
@@ -1062,12 +1000,11 @@ public class TutorialSceneManager : MonoBehaviour
 
         ShowMission(
             3,
-            "スイッチを押し続けてソナーを表示せよ"
+            "Button1を押し続けてソナーを表示せよ"
         );
 
         waitingForSonarButtonRelease =
-            sensorRead != null &&
-            sensorRead.GetTactileSwitch() == 1;
+            DataManager.GetSensorButton1() == 1;
 
         if (menuPanelManager != null)
         {
@@ -1087,15 +1024,14 @@ public class TutorialSceneManager : MonoBehaviour
 
         if (waitingForSonarButtonRelease)
         {
-            bool tactileReleased =
-                sensorRead == null ||
-                sensorRead.GetTactileSwitch() == 0;
+            bool sonarButtonReleased =
+                DataManager.GetSensorButton1() == 0;
 
             bool spaceReleased =
                 Keyboard.current == null ||
                 !Keyboard.current.spaceKey.isPressed;
 
-            if (tactileReleased &&
+            if (sonarButtonReleased &&
                 spaceReleased)
             {
                 waitingForSonarButtonRelease =
@@ -1119,7 +1055,7 @@ public class TutorialSceneManager : MonoBehaviour
 
         ShowMission(
             4,
-            "周囲を確認し、スイッチから指を離せ"
+            "周囲を確認し、Button1から指を離せ"
         );
 
         ShowInstructionText(
@@ -1171,7 +1107,7 @@ public class TutorialSceneManager : MonoBehaviour
 
         ShowMission(
             5,
-            "つまみを左に回して潜望鏡を海上へ上げろ"
+            "Button2を押し続けて潜望鏡を海上へ上げろ"
         );
     }
 
@@ -1187,11 +1123,11 @@ public class TutorialSceneManager : MonoBehaviour
                 periscopeTransform.position.y >=
                 raisedYThreshold;
         }
-        else if (sensorRead != null)
+        else
         {
+            // Button2を押している間は上昇入力
             completed =
-                sensorRead.GetEncode() ==
-                encoderValueForRaising;
+                DataManager.GetSensorButton2() == 1;
         }
 
         if (completed)

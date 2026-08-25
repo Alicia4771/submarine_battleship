@@ -7,53 +7,95 @@ public class StartSceneManager : MonoBehaviour
     [SerializeField, Tooltip("センサ値を受信するSensorRead")]
     private SensorRead sensorRead;
 
-    // 前フレームのタクトスイッチの値
-    private int previousTactileSwitch = 0;
+
+    // 前フレームのボタン1の値
+    private int previousButton1 = 0;
+
 
     // シーン移動を複数回実行しないためのフラグ
     private bool isChangingScene = false;
 
+
+    // =========================
+    // Start
+    // =========================
+
     private void Start()
     {
+        // SensorReadがInspectorで設定されていない場合は自動取得
         if (sensorRead == null)
         {
             sensorRead = FindFirstObjectByType<SensorRead>();
         }
 
+
         if (sensorRead != null)
         {
-            previousTactileSwitch = sensorRead.GetTactileSwitch();
+            // 現在のButton1の状態を初期値として保存
+            previousButton1 = sensorRead.GetButton1();
         }
         else
         {
-            Debug.LogWarning("SensorReadが見つかりません。");
+            Debug.LogWarning(
+                "SensorReadが見つかりません。"
+            );
         }
     }
 
+
+    // =========================
+    // Update
+    // =========================
+
     private void Update()
     {
-        CheckTactileSwitch();
+        CheckButton1();
+
         CheckKeyboardAndGamepad();
     }
 
-    private void CheckTactileSwitch()
+
+    // =========================
+    // Button1チェック
+    // =========================
+
+    private void CheckButton1()
     {
-        if (sensorRead == null || isChangingScene)
+        if (
+            sensorRead == null ||
+            isChangingScene
+        )
         {
             return;
         }
 
-        int currentTactileSwitch = sensorRead.GetTactileSwitch();
 
-        // タクトスイッチが0から1になった瞬間
-        if (currentTactileSwitch == 1 &&
-            previousTactileSwitch != 1)
+        // 現在のButton1の状態を取得
+        int currentButton1 =
+            sensorRead.GetButton1();
+
+
+        // =========================
+        // 0 → 1 になった瞬間だけ反応
+        // =========================
+
+        if (
+            currentButton1 == 1 &&
+            previousButton1 != 1
+        )
         {
             ChangeToTutorialScene();
         }
 
-        previousTactileSwitch = currentTactileSwitch;
+
+        // 今回の値を次フレーム用に保存
+        previousButton1 = currentButton1;
     }
+
+
+    // =========================
+    // キーボード・ゲームパッド
+    // =========================
 
     private void CheckKeyboardAndGamepad()
     {
@@ -62,21 +104,37 @@ public class StartSceneManager : MonoBehaviour
             return;
         }
 
+
+        // Enterキー
         bool enterPressed =
             Keyboard.current != null &&
             Keyboard.current.enterKey.wasPressedThisFrame;
 
-        Gamepad gamepad = Gamepad.current;
+
+        // ゲームパッド
+        Gamepad gamepad =
+            Gamepad.current;
+
 
         bool gamepadPressed =
             gamepad != null &&
             gamepad.buttonEast.wasPressedThisFrame;
 
-        if (enterPressed || gamepadPressed)
+
+        // どちらかが押されたらTutorialSceneへ
+        if (
+            enterPressed ||
+            gamepadPressed
+        )
         {
             ChangeToTutorialScene();
         }
     }
+
+
+    // =========================
+    // TutorialSceneへ移動
+    // =========================
 
     private void ChangeToTutorialScene()
     {
@@ -85,7 +143,12 @@ public class StartSceneManager : MonoBehaviour
             return;
         }
 
+
         isChangingScene = true;
-        SceneManager.LoadScene("TutorialScene");
+
+
+        SceneManager.LoadScene(
+            "TutorialScene"
+        );
     }
 }

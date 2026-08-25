@@ -3,62 +3,102 @@ using UnityEngine.InputSystem;
 
 public class TutorialSceneMenuPanelManager : MonoBehaviour
 {
+    // =========================
+    // ソナーUI
+    // =========================
+
     [Header("ソナーUI")]
+
     [SerializeField, Tooltip("ソナー表示用のパネル")]
     private GameObject sonarPanel;
 
-    [Header("センサ")]
-    [SerializeField, Tooltip("センサー読み取り用スクリプト")]
-    private SensorRead sensorRead;
+
+    // =========================
+    // 潜望鏡
+    // =========================
 
     [Header("潜望鏡")]
+
     [SerializeField, Tooltip(
         "上下移動する潜望鏡の親オブジェクト。未設定の場合はDataManagerの位置を使用")]
     private Transform periscopeTransform;
+
 
     [SerializeField, Tooltip(
         "このY座標より低い場合に水中と判定")]
     private float underwaterYThreshold = 0f;
 
+
+    // =========================
+    // ソナー使用条件
+    // =========================
+
     [Header("ソナー使用条件")]
+
     [SerializeField, Tooltip(
         "ONの場合、水上でも水中でもソナーを開ける")]
     private bool sonarPanelUnderwaterCanOpen = false;
+
 
     [SerializeField, Tooltip(
         "ソナーの入力を受け付けるか。チュートリアル開始時はOFF")]
     private bool sonarInputEnabled = false;
 
+
+    // =========================
+    // デバッグ
+    // =========================
+
     [Header("デバッグ")]
+
     [SerializeField, Tooltip(
         "Unity上でSpaceキーによるソナー操作を許可する")]
     private bool allowKeyboardTestInput = true;
 
+
+    // =========================
+    // 状態
+    // =========================
+
     // 現在ソナーパネルが表示されているか
     private bool isSonarPanelOpen = false;
 
+
+    // =========================
+    // Awake
+    // =========================
+
     private void Awake()
     {
-        if (sensorRead == null)
-        {
-            sensorRead =
-                FindFirstObjectByType<SensorRead>();
-        }
-
         // ゲーム開始時は必ず閉じる
         SetSonarPanel(false);
     }
+
+
+    // =========================
+    // Update
+    // =========================
 
     private void Update()
     {
         UpdateSonarPanel();
     }
 
+
+    // =========================
+    // OnDisable
+    // =========================
+
     private void OnDisable()
     {
         // この管理スクリプトが無効になった場合も閉じる
         SetSonarPanel(false);
     }
+
+
+    // ============================================================
+    // ソナーパネル更新
+    // ============================================================
 
     /// <summary>
     /// ソナーパネルの表示状態を更新する。
@@ -70,58 +110,92 @@ public class TutorialSceneMenuPanelManager : MonoBehaviour
             return;
         }
 
+
+        // =========================
+        // ソナー入力が無効
+        // =========================
+
         // チュートリアルの説明前など、
         // ソナー入力が無効になっている場合
         if (!sonarInputEnabled)
         {
             SetSonarPanel(false);
+
             return;
         }
+
+
+        // =========================
+        // 潜望鏡の位置確認
+        // =========================
 
         // 潜望鏡が水中になければ表示しない
         if (!CanOpenSonarByPeriscopePosition())
         {
             SetSonarPanel(false);
+
             return;
         }
 
-        bool tactileSwitchPressed =
-            IsTactileSwitchPressed();
+
+        // =========================
+        // 入力取得
+        // =========================
+
+        bool sonarButtonPressed =
+            IsSonarButtonPressed();
+
 
         bool spaceKeyPressed =
             allowKeyboardTestInput &&
             IsSpaceKeyPressed();
 
-        // タクトスイッチまたはSpaceキーを
+
+        // Button1またはSpaceキーを
         // 押している間だけ表示する
         bool shouldOpen =
-            tactileSwitchPressed ||
+            sonarButtonPressed ||
             spaceKeyPressed;
 
-        SetSonarPanel(shouldOpen);
+
+        SetSonarPanel(
+            shouldOpen
+        );
     }
+
+
+    // ============================================================
+    // ソナーボタン
+    // ============================================================
 
     /// <summary>
-    /// タクトスイッチが押されているか。
+    /// ソナー用のButton1が押されているか。
     /// </summary>
-    private bool IsTactileSwitchPressed()
+    private bool IsSonarButtonPressed()
     {
-        if (sensorRead == null)
-        {
-            return false;
-        }
-
-        return sensorRead.GetTactileSwitch() == 1;
+        return
+            DataManager.GetSensorButton1() == 1;
     }
+
+
+    // ============================================================
+    // Spaceキー
+    // ============================================================
 
     /// <summary>
     /// テスト用のSpaceキーが押されているか。
     /// </summary>
     private bool IsSpaceKeyPressed()
     {
-        return Keyboard.current != null &&
-               Keyboard.current.spaceKey.isPressed;
+        return
+            Keyboard.current != null &&
+            Keyboard.current.spaceKey.isPressed;
     }
+
+
+    // ============================================================
+    // ソナーを開ける高さか判定
+    // ============================================================
 
     /// <summary>
     /// 現在の潜望鏡の高さで
@@ -135,11 +209,12 @@ public class TutorialSceneMenuPanelManager : MonoBehaviour
             return true;
         }
 
+
         float currentY;
+
 
         if (periscopeTransform != null)
         {
-            // TutorialSceneではこちらを使用するのがおすすめ
             currentY =
                 periscopeTransform.position.y;
         }
@@ -153,22 +228,42 @@ public class TutorialSceneMenuPanelManager : MonoBehaviour
                     .y;
         }
 
-        return currentY < underwaterYThreshold;
+
+        return
+            currentY < underwaterYThreshold;
     }
+
+
+    // ============================================================
+    // ソナーパネル表示設定
+    // ============================================================
 
     /// <summary>
     /// ソナーパネルの表示状態を変更する。
     /// </summary>
-    private void SetSonarPanel(bool isOpen)
+    private void SetSonarPanel(
+        bool isOpen
+    )
     {
-        isSonarPanelOpen = isOpen;
+        isSonarPanelOpen =
+            isOpen;
 
-        if (sonarPanel != null &&
-            sonarPanel.activeSelf != isOpen)
+
+        if (
+            sonarPanel != null &&
+            sonarPanel.activeSelf != isOpen
+        )
         {
-            sonarPanel.SetActive(isOpen);
+            sonarPanel.SetActive(
+                isOpen
+            );
         }
     }
+
+
+    // ============================================================
+    // ソナーパネル状態取得
+    // ============================================================
 
     /// <summary>
     /// 現在ソナーパネルが表示されているか取得する。
@@ -179,6 +274,11 @@ public class TutorialSceneMenuPanelManager : MonoBehaviour
         return isSonarPanelOpen;
     }
 
+
+    // ============================================================
+    // ソナー入力状態取得
+    // ============================================================
+
     /// <summary>
     /// ソナー入力が有効か取得する。
     /// </summary>
@@ -187,13 +287,22 @@ public class TutorialSceneMenuPanelManager : MonoBehaviour
         return sonarInputEnabled;
     }
 
+
+    // ============================================================
+    // ソナー入力の有効・無効
+    // ============================================================
+
     /// <summary>
     /// ソナー入力の有効・無効を変更する。
     /// TutorialSceneManagerから使用する。
     /// </summary>
-    public void SetSonarInputEnabled(bool enabled)
+    public void SetSonarInputEnabled(
+        bool enabled
+    )
     {
-        sonarInputEnabled = enabled;
+        sonarInputEnabled =
+            enabled;
+
 
         if (!sonarInputEnabled)
         {
@@ -201,27 +310,46 @@ public class TutorialSceneMenuPanelManager : MonoBehaviour
         }
     }
 
+
+    // ============================================================
+    // 水上でのソナー使用設定取得
+    // ============================================================
+
     /// <summary>
     /// 水上でもソナーを使用できる設定か取得する。
     /// </summary>
     public bool GetSonarPanelUnderwaterCanOpen()
     {
-        return sonarPanelUnderwaterCanOpen;
+        return
+            sonarPanelUnderwaterCanOpen;
     }
+
+
+    // ============================================================
+    // 水上でのソナー使用設定
+    // ============================================================
 
     /// <summary>
     /// 水上でもソナーを使用できるか設定する。
     /// </summary>
     public void SetSonarPanelUnderwaterCanOpen(
-        bool canOpen)
+        bool canOpen
+    )
     {
-        sonarPanelUnderwaterCanOpen = canOpen;
+        sonarPanelUnderwaterCanOpen =
+            canOpen;
+
 
         if (!CanOpenSonarByPeriscopePosition())
         {
             SetSonarPanel(false);
         }
     }
+
+
+    // ============================================================
+    // ソナーパネルを強制的に閉じる
+    // ============================================================
 
     /// <summary>
     /// ソナーパネルを強制的に閉じる。
