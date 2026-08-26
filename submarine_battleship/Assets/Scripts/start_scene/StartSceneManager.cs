@@ -4,139 +4,178 @@ using UnityEngine.SceneManagement;
 
 public class StartSceneManager : MonoBehaviour
 {
-    [SerializeField, Tooltip("センサ値を受信するSensorRead")]
+    // ============================================================
+    // Sensor
+    // ============================================================
+
+    [Header("Sensor")]
+
+    [SerializeField, Tooltip(
+        "センサ値を受信するSensorRead")]
     private SensorRead sensorRead;
 
 
-    // 前フレームのボタン1の値
-    private int previousButton1 = 0;
+    // ============================================================
+    // Scene
+    // ============================================================
+
+    [Header("Scene")]
+
+    [SerializeField, Tooltip(
+        "チュートリアル選択シーン名")]
+    private string tutorialChooseSceneName =
+        "Tuto_choose";
 
 
-    // シーン移動を複数回実行しないためのフラグ
-    private bool isChangingScene = false;
+    // ============================================================
+    // Internal
+    // ============================================================
+
+    // 前フレームのボタン1
+    private int previousButton1 =
+        0;
 
 
-    // =========================
+    // シーン遷移の多重実行防止
+    private bool isChangingScene =
+        false;
+
+
+    // ============================================================
     // Start
-    // =========================
+    // ============================================================
 
     private void Start()
     {
-        // SensorReadがInspectorで設定されていない場合は自動取得
+        Time.timeScale =
+            1.0f;
+
+
+        // ========================================================
+        // SensorRead自動取得
+        // ========================================================
+
         if (sensorRead == null)
         {
-            sensorRead = FindFirstObjectByType<SensorRead>();
+            sensorRead =
+                FindFirstObjectByType<
+                    SensorRead
+                >();
         }
 
 
         if (sensorRead != null)
         {
-            // 現在のButton1の状態を初期値として保存
-            previousButton1 = sensorRead.GetButton1();
+            previousButton1 =
+                sensorRead.GetButton1();
         }
         else
         {
             Debug.LogWarning(
+                "StartSceneManager: " +
                 "SensorReadが見つかりません。"
             );
         }
     }
 
 
-    // =========================
+    // ============================================================
     // Update
-    // =========================
+    // ============================================================
 
     private void Update()
     {
+        if (isChangingScene)
+        {
+            return;
+        }
+
+
         CheckButton1();
 
         CheckKeyboardAndGamepad();
     }
 
 
-    // =========================
-    // Button1チェック
-    // =========================
+    // ============================================================
+    // 黒いボタン
+    // ============================================================
 
     private void CheckButton1()
     {
-        if (
-            sensorRead == null ||
-            isChangingScene
-        )
+        if (sensorRead == null)
         {
             return;
         }
 
 
-        // 現在のButton1の状態を取得
         int currentButton1 =
             sensorRead.GetButton1();
 
 
-        // =========================
-        // 0 → 1 になった瞬間だけ反応
-        // =========================
+        // ========================================================
+        // 0 → 1になった瞬間のみ反応
+        // ========================================================
 
         if (
             currentButton1 == 1 &&
             previousButton1 != 1
         )
         {
-            ChangeToTutorialScene();
+            ChangeToTutorialChooseScene();
         }
 
 
-        // 今回の値を次フレーム用に保存
-        previousButton1 = currentButton1;
+        previousButton1 =
+            currentButton1;
     }
 
 
-    // =========================
-    // キーボード・ゲームパッド
-    // =========================
+    // ============================================================
+    // Keyboard / Gamepad
+    // ============================================================
 
     private void CheckKeyboardAndGamepad()
     {
-        if (isChangingScene)
-        {
-            return;
-        }
-
-
-        // Enterキー
         bool enterPressed =
             Keyboard.current != null &&
-            Keyboard.current.enterKey.wasPressedThisFrame;
+            (
+                Keyboard.current
+                    .enterKey
+                    .wasPressedThisFrame
+                ||
+                Keyboard.current
+                    .numpadEnterKey
+                    .wasPressedThisFrame
+            );
 
 
-        // ゲームパッド
         Gamepad gamepad =
             Gamepad.current;
 
 
         bool gamepadPressed =
             gamepad != null &&
-            gamepad.buttonEast.wasPressedThisFrame;
+            gamepad
+                .buttonEast
+                .wasPressedThisFrame;
 
 
-        // どちらかが押されたらTutorialSceneへ
         if (
             enterPressed ||
             gamepadPressed
         )
         {
-            ChangeToTutorialScene();
+            ChangeToTutorialChooseScene();
         }
     }
 
 
-    // =========================
-    // TutorialSceneへ移動
-    // =========================
+    // ============================================================
+    // Tutorial Choose Scene
+    // ============================================================
 
-    private void ChangeToTutorialScene()
+    private void ChangeToTutorialChooseScene()
     {
         if (isChangingScene)
         {
@@ -144,11 +183,34 @@ public class StartSceneManager : MonoBehaviour
         }
 
 
-        isChangingScene = true;
+        isChangingScene =
+            true;
+
+
+        Time.timeScale =
+            1.0f;
 
 
         SceneManager.LoadScene(
-            "TutorialScene"
+            tutorialChooseSceneName
         );
+    }
+
+
+    // ============================================================
+    // Inspector
+    // ============================================================
+
+    private void OnValidate()
+    {
+        if (
+            string.IsNullOrWhiteSpace(
+                tutorialChooseSceneName
+            )
+        )
+        {
+            tutorialChooseSceneName =
+                "Tuto_choose";
+        }
     }
 }

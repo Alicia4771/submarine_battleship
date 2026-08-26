@@ -1,25 +1,40 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Text;
 using UnityEngine;
 
+[DisallowMultipleComponent]
 public class CommunicationMissionManager : MonoBehaviour
 {
     // ============================================================
-    // ミッション状態
+    // Mission State
     // ============================================================
 
     public enum MissionState
     {
-        Searching,
-        Memorizing,
-        WaitingForSubmerge,
-        Inputting,
-        Transmitting,
-        Evaluating,
-        Success,
-        Failed
+        Searching = 0,
+
+        // 敵船の信号を見て覚えている状態
+        Memorizing = 1,
+
+        // 敵船の信号は終了したが、
+        // まだ潜望鏡が完全格納されていない状態
+        WaitingForSubmerge = 2,
+
+        // Button4による入力受付
+        Inputting = 3,
+
+        // 通信マストによる送信
+        Transmitting = 4,
+
+        // 正誤判定
+        Evaluating = 5,
+
+        // 成功
+        Success = 6,
+
+        // 失敗
+        Failed = 7
     }
 
 
@@ -27,128 +42,164 @@ public class CommunicationMissionManager : MonoBehaviour
     // 定数
     // ============================================================
 
-    private const int DefaultSuccessScore = 100;
-    private const int DefaultFailureScorePenalty = 50;
+    private const int DefaultSuccessScore =
+        100;
 
-    private const float DefaultResultStateDuration = 1.5f;
+    private const int DefaultFailureScore =
+        -50;
 
-    private const float MinimumNonNegativeValue = 0.0f;
+    private const float DefaultEvaluationDelay =
+        0.25f;
 
+    private const float DefaultResultStateDuration =
+        0.10f;
 
-    // ============================================================
-    // Inspector設定
-    // ============================================================
+    private const float DefaultFallbackTransmissionDuration =
+        2.0f;
 
-    [Header("References")]
-
-    [SerializeField, Tooltip(
-        "Button4による信号入力を管理するController。" +
-        "未設定の場合はシーン内から自動検索する")]
-    private SignalInputController
-        signalInputController;
-
-
-    [SerializeField, Tooltip(
-        "司令部への送信に使用する通信マスト。" +
-        "未設定の場合はシーン内から自動検索する")]
-    private CommunicationMastController
-        communicationMastController;
+    private const float MinimumNonNegativeValue =
+        0.0f;
 
 
     // ============================================================
-    // スコア
-    // ============================================================
-
-    [Header("Score")]
-
-    [SerializeField, Tooltip(
-        "通信成功時に加算するスコア")]
-    [Min(0)]
-    private int successScore =
-        DefaultSuccessScore;
-
-
-    [SerializeField, Tooltip(
-        "通信失敗時に減算するスコア")]
-    [Min(0)]
-    private int failureScorePenalty =
-        DefaultFailureScorePenalty;
-
-
-    // ============================================================
-    // 結果表示
-    // ============================================================
-
-    [Header("Mission Result")]
-
-    [SerializeField, Tooltip(
-        "成功・失敗判定後、" +
-        "次の索敵状態へ戻るまでの待ち時間")]
-    [Min(MinimumNonNegativeValue)]
-    private float resultStateDuration =
-        DefaultResultStateDuration;
-
-
-    // ============================================================
-    // デバッグ
-    // ============================================================
-
-    [Header("Debug")]
-
-    [SerializeField, Tooltip(
-        "通信ミッションの状態をConsoleへ表示する")]
-    private bool debugLog = true;
-
-
-    // ============================================================
-    // 内部状態
-    // ============================================================
-
-    private MissionState currentState =
-        MissionState.Searching;
-
-
-    private EnemyShip activeEnemyShip;
-
-
-    // 敵艦から傍受した正解信号
-    private readonly List<SignalSymbol>
-        targetSignal =
-            new();
-
-
-    // プレイヤーが入力し、
-    // 通信マストから送信している信号
-    private readonly List<SignalSymbol>
-        pendingPlayerSignal =
-            new();
-
-
-    private Coroutine resetMissionCoroutine;
-
-
-    // ============================================================
-    // イベント
+    // Event
     // ============================================================
 
     /// <summary>
-    /// ミッション状態が変化したときに発生する。
-    ///
-    /// GameManagerがSearching状態を検知して
-    /// 次の敵艦を生成する処理などに使用できる。
+    /// MissionStateが変更されたときに発生する。
     /// </summary>
     public event Action<MissionState>
         MissionStateChanged;
 
 
     /// <summary>
-    /// 信号の正誤判定が完了した時に発生する。
-    ///
-    /// true  = 成功
+    /// 通信の正誤判定が完了したときに発生する。
+    /// true = 成功
     /// false = 失敗
     /// </summary>
     public event Action<bool>
         MissionEvaluated;
+
+
+    // ============================================================
+    // Mast
+    // ============================================================
+
+    [Header("Communication Mast")]
+
+    [SerializeField, Tooltip(
+        "通信マストを制御するCommunicationMastController。" +
+        "未設定の場合は自動検索する")]
+    private CommunicationMastController
+        communicationMastController;
+
+
+    // ============================================================
+    // Score
+    // ============================================================
+
+    [Header("Score")]
+
+    [SerializeField, Tooltip(
+        "通信成功時に加算するスコア")]
+    private int successScore =
+        DefaultSuccessScore;
+
+
+    [SerializeField, Tooltip(
+        "通信失敗時に加算するスコア。" +
+        "減点する場合は負の値にする")]
+    private int failureScore =
+        DefaultFailureScore;
+
+
+    // ============================================================
+    // Timing
+    // ============================================================
+
+    [Header("Timing")]
+
+    [SerializeField, Tooltip(
+        "通信マスト格納後、正誤判定結果を出すまでの時間")]
+    [Min(MinimumNonNegativeValue)]
+    private float evaluationDelay =
+        DefaultEvaluationDelay;
+
+
+    [SerializeField, Tooltip(
+        "Success / Failed状態を維持してから" +
+        "Searchingへ戻るまでの時間")]
+    [Min(MinimumNonNegativeValue)]
+    private float resultStateDuration =
+        DefaultResultStateDuration;
+
+
+    [SerializeField, Tooltip(
+        "CommunicationMastControllerが存在しない場合に" +
+        "使用する仮の送信時間")]
+    [Min(MinimumNonNegativeValue)]
+    private float fallbackTransmissionDuration =
+        DefaultFallbackTransmissionDuration;
+
+
+    // ============================================================
+    // Debug
+    // ============================================================
+
+    [Header("Debug")]
+
+    [SerializeField]
+    private bool debugLog =
+        true;
+
+
+    // ============================================================
+    // 内部状態
+    // ============================================================
+
+    [SerializeField]
+    private MissionState currentState =
+        MissionState.Searching;
+
+
+    private EnemyShip
+        activeEnemy;
+
+
+    private readonly List<SignalSymbol>
+        expectedSignal =
+            new List<SignalSymbol>();
+
+
+    private readonly List<SignalSymbol>
+        submittedSignal =
+            new List<SignalSymbol>();
+
+
+    private bool enemySignalFinished =
+        false;
+
+
+    private bool lastMissionWasSuccessful =
+        false;
+
+
+    private Coroutine evaluationCoroutine;
+
+    private Coroutine fallbackTransmissionCoroutine;
+
+
+    // ============================================================
+    // Awake
+    // ============================================================
+
+    private void Awake()
+    {
+        ResolveReferences();
+
+        currentState =
+            MissionState.Searching;
+    }
 
 
     // ============================================================
@@ -158,19 +209,6 @@ public class CommunicationMissionManager : MonoBehaviour
     private void Start()
     {
         ResolveReferences();
-
-        SubscribeMastEvents();
-
-
-        if (signalInputController != null)
-        {
-            signalInputController
-                .ClearInput();
-        }
-
-
-        currentState =
-            MissionState.Searching;
     }
 
 
@@ -180,38 +218,7 @@ public class CommunicationMissionManager : MonoBehaviour
 
     private void Update()
     {
-        // =========================
-        // 潜望鏡格納待ち
-        // =========================
-
-        if (
-            currentState ==
-            MissionState.WaitingForSubmerge
-        )
-        {
-            CheckPeriscopeLowered();
-        }
-    }
-
-
-    // ============================================================
-    // OnDestroy
-    // ============================================================
-
-    private void OnDestroy()
-    {
-        UnsubscribeMastEvents();
-
-
-        if (resetMissionCoroutine != null)
-        {
-            StopCoroutine(
-                resetMissionCoroutine
-            );
-
-            resetMissionCoroutine =
-                null;
-        }
+        UpdatePeriscopeLoweredState();
     }
 
 
@@ -221,15 +228,6 @@ public class CommunicationMissionManager : MonoBehaviour
 
     private void ResolveReferences()
     {
-        if (signalInputController == null)
-        {
-            signalInputController =
-                FindFirstObjectByType<
-                    SignalInputController
-                >();
-        }
-
-
         if (
             communicationMastController ==
             null
@@ -243,82 +241,90 @@ public class CommunicationMissionManager : MonoBehaviour
 
 
         if (
-            signalInputController ==
-            null
-        )
-        {
-            Debug.LogError(
-                "SignalInputControllerが見つかりません。"
-            );
-        }
-
-
-        if (
             communicationMastController ==
-            null
+                null
+            &&
+            debugLog
         )
         {
             Debug.LogWarning(
-                "CommunicationMastControllerが見つかりません。" +
-                "通信マスト演出なしで正誤判定を行います。"
+                "CommunicationMissionManager: " +
+                "CommunicationMastControllerが見つかりません。"
             );
         }
     }
 
 
     // ============================================================
-    // 通信マストイベント
+    // 潜望鏡状態監視
     // ============================================================
 
-    private void SubscribeMastEvents()
+    private void UpdatePeriscopeLoweredState()
     {
+        // ========================================================
+        // 今回の重要な変更部分
+        // ========================================================
+        //
+        // 敵船の信号が最後まで終わっているかどうかに関係なく、
+        // 潜望鏡が完全格納されたら即座にInputtingへ移る。
+        //
+        // Memorizing
+        //      ↓
+        // 潜望鏡完全格納
+        //      ↓
+        // Inputting
+        //
+        // WaitingForSubmerge
+        //      ↓
+        // 潜望鏡完全格納
+        //      ↓
+        // Inputting
+        // ========================================================
+
         if (
-            communicationMastController ==
-            null
+            currentState !=
+                MissionState.Memorizing
+            &&
+            currentState !=
+                MissionState.WaitingForSubmerge
         )
         {
             return;
         }
 
 
-        communicationMastController
-            .TransmissionCompleted +=
-                HandleTransmissionCompleted;
-    }
-
-
-    private void UnsubscribeMastEvents()
-    {
         if (
-            communicationMastController ==
-            null
+            !DataManager
+                .GetIsPeriscopeFullyLowered()
         )
         {
             return;
         }
 
 
-        communicationMastController
-            .TransmissionCompleted -=
-                HandleTransmissionCompleted;
+        BeginSignalInput();
     }
 
 
     // ============================================================
-    // 敵艦発見
+    // Mission開始
     // ============================================================
 
-    /// <summary>
-    /// EnemyShipから通信ミッション開始を要求される。
-    ///
-    /// 既に別のミッション中ならfalse。
-    /// </summary>
     public bool TryBeginMission(
         EnemyShip enemyShip,
-        IReadOnlyList<SignalSymbol>
-            signalPattern
+        IReadOnlyList<SignalSymbol> signalPattern
     )
     {
+        // 既に別ミッション中
+        if (
+            currentState !=
+            MissionState.Searching
+        )
+        {
+            return false;
+        }
+
+
         if (enemyShip == null)
         {
             return false;
@@ -334,55 +340,39 @@ public class CommunicationMissionManager : MonoBehaviour
         }
 
 
-        if (
-            currentState !=
-            MissionState.Searching
-        )
-        {
-            return false;
-        }
-
-
-        // =========================
-        // 対象敵艦
-        // =========================
-
-        activeEnemyShip =
+        activeEnemy =
             enemyShip;
 
 
-        // =========================
-        // 正解信号
-        // =========================
-
-        targetSignal.Clear();
+        expectedSignal.Clear();
 
 
-        CopySignal(
-            signalPattern,
-            targetSignal
-        );
-
-
-        // =========================
-        // 前回の入力
-        // =========================
-
-        pendingPlayerSignal.Clear();
-
-
-        if (signalInputController != null)
+        for (
+            int signalIndex = 0;
+            signalIndex < signalPattern.Count;
+            signalIndex++
+        )
         {
-            signalInputController
-                .ClearInput();
+            expectedSignal.Add(
+                signalPattern[
+                    signalIndex
+                ]
+            );
         }
 
 
-        // =========================
-        // 傍受状態
-        // =========================
+        submittedSignal.Clear();
 
-        SetState(
+
+        enemySignalFinished =
+            false;
+
+
+        lastMissionWasSuccessful =
+            false;
+
+
+        SetMissionState(
             MissionState.Memorizing
         );
 
@@ -391,8 +381,8 @@ public class CommunicationMissionManager : MonoBehaviour
         {
             Debug.Log(
                 "通信傍受開始: " +
-                SignalToDebugString(
-                    targetSignal
+                ConvertSignalToString(
+                    expectedSignal
                 )
             );
         }
@@ -403,21 +393,36 @@ public class CommunicationMissionManager : MonoBehaviour
 
 
     // ============================================================
-    // 敵信号終了
+    // 敵船信号終了通知
     // ============================================================
 
     public void NotifyEnemySignalFinished(
         EnemyShip enemyShip
     )
     {
+        // 別の敵船なら無視
         if (
             enemyShip == null ||
-            enemyShip != activeEnemyShip
+            enemyShip != activeEnemy
         )
         {
             return;
         }
 
+
+        enemySignalFinished =
+            true;
+
+
+        // ========================================================
+        // 既に入力以降へ進んでいる場合
+        // ========================================================
+        //
+        // 今回、信号途中で潜望鏡を下げることができるため、
+        // Inputtingへ移った後にこの通知が届くことがある。
+        //
+        // その場合は状態を巻き戻してはいけない。
+        // ========================================================
 
         if (
             currentState !=
@@ -428,7 +433,22 @@ public class CommunicationMissionManager : MonoBehaviour
         }
 
 
-        SetState(
+        // 潜望鏡が既に完全格納されているなら
+        // 即座に入力開始
+        if (
+            DataManager
+                .GetIsPeriscopeFullyLowered()
+        )
+        {
+            BeginSignalInput();
+
+            return;
+        }
+
+
+        // 信号は終わったが、
+        // まだ潜望鏡が下まで降りていない
+        SetMissionState(
             MissionState.WaitingForSubmerge
         );
 
@@ -436,108 +456,66 @@ public class CommunicationMissionManager : MonoBehaviour
         if (debugLog)
         {
             Debug.Log(
-                "敵信号終了。" +
-                "潜望鏡を完全に下げてください。"
+                "敵艦の発光信号が終了しました。" +
+                "潜望鏡の完全格納を待っています。"
             );
         }
     }
 
 
     // ============================================================
-    // 潜望鏡格納確認
-    // ============================================================
-
-    private void CheckPeriscopeLowered()
-    {
-        if (
-            !DataManager
-                .GetIsPeriscopeFullyLowered()
-        )
-        {
-            return;
-        }
-
-
-        BeginSignalInput();
-    }
-
-
-    // ============================================================
-    // 信号入力開始
+    // Button4入力開始
     // ============================================================
 
     private void BeginSignalInput()
     {
         if (
             currentState !=
-            MissionState.WaitingForSubmerge
+                MissionState.Memorizing
+            &&
+            currentState !=
+                MissionState.WaitingForSubmerge
         )
         {
             return;
         }
 
 
-        if (signalInputController != null)
-        {
-            signalInputController
-                .ClearInput();
-        }
+        submittedSignal.Clear();
 
 
-        pendingPlayerSignal.Clear();
-
-
-        SetState(
+        SetMissionState(
             MissionState.Inputting
         );
 
 
         if (debugLog)
         {
-            Debug.Log(
-                "信号入力開始。" +
-                "Button4で信号を再現してください。"
-            );
+            if (enemySignalFinished)
+            {
+                Debug.Log(
+                    "潜望鏡完全格納。" +
+                    "Button4による信号入力を開始できます。"
+                );
+            }
+            else
+            {
+                Debug.Log(
+                    "潜望鏡完全格納。" +
+                    "敵艦の発光途中ですが、" +
+                    "Button4による信号入力を開始できます。"
+                );
+            }
         }
     }
 
 
     // ============================================================
-    // Button4入力可否
+    // プレイヤー入力受付
     // ============================================================
 
-    public bool CanAcceptSignalInput()
-    {
-        return
-            currentState ==
-            MissionState.Inputting;
-    }
-
-
-    // ============================================================
-    // 必要な記号数
-    // ============================================================
-
-    public int GetExpectedSignalLength()
-    {
-        return
-            targetSignal.Count;
-    }
-
-
-    // ============================================================
-    // プレイヤー信号提出
-    // ============================================================
-
-    /// <summary>
-    /// SignalInputControllerから呼び出される。
-    ///
-    /// 第3段階ではここで正誤判定せず、
-    /// 通信マストによる送信を開始する。
-    /// </summary>
-    public void SubmitPlayerSignal(
-        IReadOnlyList<SignalSymbol>
-            playerSignal
+    public bool SubmitPlayerSignal(
+        IReadOnlyList<SignalSymbol> playerSignal
     )
     {
         if (
@@ -545,218 +523,67 @@ public class CommunicationMissionManager : MonoBehaviour
             MissionState.Inputting
         )
         {
-            return;
+            return false;
         }
 
 
-        if (
-            playerSignal == null ||
-            playerSignal.Count <= 0
-        )
-        {
-            return;
-        }
-
-
-        // =========================
-        // 入力信号を保存
-        // =========================
-
-        pendingPlayerSignal.Clear();
-
-
-        CopySignal(
-            playerSignal,
-            pendingPlayerSignal
-        );
-
-
-        // =========================
-        // 送信状態
-        // =========================
-
-        SetState(
-            MissionState.Transmitting
-        );
-
-
-        if (debugLog)
-        {
-            Debug.Log(
-                "信号入力完了。" +
-                "司令部への送信を開始します。"
-            );
-        }
-
-
-        StartCommunicationTransmission();
-    }
-
-
-    // ============================================================
-    // 通信マスト送信開始
-    // ============================================================
-
-    private void StartCommunicationTransmission()
-    {
-        // =========================
-        // マスト未設定時
-        // =========================
-        //
-        // 開発途中でもゲーム進行が完全停止しないよう
-        // 通信マストなしの場合は直接判定する。
-        // =========================
-
-        if (
-            communicationMastController ==
-            null
-        )
-        {
-            Debug.LogWarning(
-                "CommunicationMastControllerが存在しないため、" +
-                "通信マスト処理を省略します。"
-            );
-
-
-            EvaluatePendingSignal();
-
-            return;
-        }
-
-
-        bool started =
-            communicationMastController
-                .TryStartTransmission();
-
-
-        // =========================
-        // 開始失敗
-        // =========================
-
-        if (!started)
-        {
-            Debug.LogWarning(
-                "通信マストを開始できなかったため、" +
-                "通信マスト処理を省略して判定します。"
-            );
-
-
-            EvaluatePendingSignal();
-        }
-    }
-
-
-    // ============================================================
-    // 通信マスト終了通知
-    // ============================================================
-
-    private void HandleTransmissionCompleted()
-    {
-        // ミッション終了などで
-        // 状態が既に変わっていた場合は無視
-        if (
-            currentState !=
-            MissionState.Transmitting
-        )
-        {
-            return;
-        }
-
-
-        if (debugLog)
-        {
-            Debug.Log(
-                "司令部への送信が完了しました。" +
-                "信号を照合します。"
-            );
-        }
-
-
-        EvaluatePendingSignal();
-    }
-
-
-    // ============================================================
-    // 正誤判定
-    // ============================================================
-
-    private void EvaluatePendingSignal()
-    {
-        if (
-            currentState !=
-            MissionState.Transmitting
-        )
-        {
-            return;
-        }
-
-
-        SetState(
-            MissionState.Evaluating
-        );
-
-
-        bool success =
-            CompareSignals(
-                targetSignal,
-                pendingPlayerSignal
-            );
-
-
-        if (success)
-        {
-            HandleMissionSuccess();
-        }
-        else
-        {
-            HandleMissionFailure();
-        }
-    }
-
-
-    // ============================================================
-    // 信号比較
-    // ============================================================
-
-    private bool CompareSignals(
-        IReadOnlyList<SignalSymbol>
-            expected,
-        IReadOnlyList<SignalSymbol>
-            actual
-    )
-    {
-        if (
-            expected == null ||
-            actual == null
-        )
+        if (playerSignal == null)
         {
             return false;
         }
 
 
+        // 必要記号数と一致していなければ送信しない
         if (
-            expected.Count !=
-            actual.Count
+            playerSignal.Count !=
+            expectedSignal.Count
         )
         {
+            if (debugLog)
+            {
+                Debug.LogWarning(
+                    "入力数が必要数と一致しません。" +
+                    " Expected=" +
+                    expectedSignal.Count +
+                    " Input=" +
+                    playerSignal.Count
+                );
+            }
+
+
             return false;
         }
+
+
+        submittedSignal.Clear();
 
 
         for (
-            int i = 0;
-            i < expected.Count;
-            i++
+            int signalIndex = 0;
+            signalIndex < playerSignal.Count;
+            signalIndex++
         )
         {
-            if (
-                expected[i] !=
-                actual[i]
-            )
-            {
-                return false;
-            }
+            submittedSignal.Add(
+                playerSignal[
+                    signalIndex
+                ]
+            );
         }
+
+
+        if (debugLog)
+        {
+            Debug.Log(
+                "プレイヤー入力完了: " +
+                ConvertSignalToString(
+                    submittedSignal
+                )
+            );
+        }
+
+
+        BeginTransmission();
 
 
         return true;
@@ -764,98 +591,238 @@ public class CommunicationMissionManager : MonoBehaviour
 
 
     // ============================================================
-    // 通信成功
+    // 通信開始
     // ============================================================
 
-    private void HandleMissionSuccess()
+    private void BeginTransmission()
     {
-        DataManager.AddScore(
-            successScore
-        );
-
-
-        SetState(
-            MissionState.Success
-        );
-
-
-        if (debugLog)
+        if (
+            currentState !=
+            MissionState.Inputting
+        )
         {
+            return;
+        }
+
+
+        SetMissionState(
+            MissionState.Transmitting
+        );
+
+
+        // ========================================================
+        // 通信マストあり
+        // ========================================================
+
+        if (
+            communicationMastController !=
+            null
+        )
+        {
+            bool started =
+                communicationMastController
+                    .BeginTransmission(
+                        HandleMastTransmissionCompleted
+                    );
+
+
+            if (started)
+            {
+                if (debugLog)
+                {
+                    Debug.Log(
+                        "通信マストによる送信を開始しました。"
+                    );
+                }
+
+
+                return;
+            }
+        }
+
+
+        // ========================================================
+        // 通信マストが使用できなかった場合
+        // ========================================================
+
+        if (
+            fallbackTransmissionCoroutine !=
+            null
+        )
+        {
+            StopCoroutine(
+                fallbackTransmissionCoroutine
+            );
+        }
+
+
+        fallbackTransmissionCoroutine =
+            StartCoroutine(
+                FallbackTransmissionRoutine()
+            );
+    }
+
+
+    // ============================================================
+    // Mastなし時
+    // ============================================================
+
+    private IEnumerator
+        FallbackTransmissionRoutine()
+    {
+        if (
+            fallbackTransmissionDuration >
+            MinimumNonNegativeValue
+        )
+        {
+            yield return
+                new WaitForSeconds(
+                    fallbackTransmissionDuration
+                );
+        }
+
+
+        fallbackTransmissionCoroutine =
+            null;
+
+
+        HandleMastTransmissionCompleted();
+    }
+
+
+    // ============================================================
+    // Mast通信終了
+    // ============================================================
+
+    private void HandleMastTransmissionCompleted()
+    {
+        if (
+            currentState !=
+            MissionState.Transmitting
+        )
+        {
+            return;
+        }
+
+
+        BeginEvaluation();
+    }
+
+
+    // ============================================================
+    // 正誤判定開始
+    // ============================================================
+
+    private void BeginEvaluation()
+    {
+        if (
+            currentState !=
+            MissionState.Transmitting
+        )
+        {
+            return;
+        }
+
+
+        SetMissionState(
+            MissionState.Evaluating
+        );
+
+
+        if (evaluationCoroutine != null)
+        {
+            StopCoroutine(
+                evaluationCoroutine
+            );
+        }
+
+
+        evaluationCoroutine =
+            StartCoroutine(
+                EvaluationRoutine()
+            );
+    }
+
+
+    // ============================================================
+    // 正誤判定
+    // ============================================================
+
+    private IEnumerator EvaluationRoutine()
+    {
+        // 「照合中」を画面上で認識できるよう、
+        // 少しだけ待つことができる
+        if (
+            evaluationDelay >
+            MinimumNonNegativeValue
+        )
+        {
+            yield return
+                new WaitForSeconds(
+                    evaluationDelay
+                );
+        }
+
+
+        bool wasSuccessful =
+            CompareSignals(
+                expectedSignal,
+                submittedSignal
+            );
+
+
+        lastMissionWasSuccessful =
+            wasSuccessful;
+
+
+        // ========================================================
+        // Score
+        // ========================================================
+
+        if (wasSuccessful)
+        {
+            DataManager.AddScore(
+                successScore
+            );
+
+
+            SetMissionState(
+                MissionState.Success
+            );
+
+
             Debug.Log(
                 "通信成功！ +" +
                 successScore +
                 "点"
             );
         }
-
-
-        MissionEvaluated?.Invoke(
-            true
-        );
-
-
-        StartResetMission();
-    }
-
-
-    // ============================================================
-    // 通信失敗
-    // ============================================================
-
-    private void HandleMissionFailure()
-    {
-        DataManager.AddScore(
-            -failureScorePenalty
-        );
-
-
-        SetState(
-            MissionState.Failed
-        );
-
-
-        if (debugLog)
+        else
         {
+            DataManager.AddScore(
+                failureScore
+            );
+
+
+            SetMissionState(
+                MissionState.Failed
+            );
+
+
             Debug.Log(
-                "通信失敗。 -" +
-                failureScorePenalty +
+                "通信失敗！ " +
+                failureScore +
                 "点"
             );
         }
 
 
+        // UIやGameManagerへ通知
         MissionEvaluated?.Invoke(
-            false
+            wasSuccessful
         );
 
 
-        StartResetMission();
-    }
-
-
-    // ============================================================
-    // 次のミッション
-    // ============================================================
-
-    private void StartResetMission()
-    {
-        if (resetMissionCoroutine != null)
-        {
-            StopCoroutine(
-                resetMissionCoroutine
-            );
-        }
-
-
-        resetMissionCoroutine =
-            StartCoroutine(
-                ResetMissionAfterDelay()
-            );
-    }
-
-
-    private IEnumerator ResetMissionAfterDelay()
-    {
         if (
             resultStateDuration >
             MinimumNonNegativeValue
@@ -868,38 +835,81 @@ public class CommunicationMissionManager : MonoBehaviour
         }
 
 
-        ResetCurrentMission();
-
-
-        resetMissionCoroutine =
+        evaluationCoroutine =
             null;
+
+
+        FinishMission();
     }
 
 
     // ============================================================
-    // ミッション初期化
+    // 信号比較
     // ============================================================
 
-    private void ResetCurrentMission()
+    private bool CompareSignals(
+        IReadOnlyList<SignalSymbol> targetSignal,
+        IReadOnlyList<SignalSymbol> playerSignal
+    )
     {
-        activeEnemyShip =
-            null;
-
-
-        targetSignal.Clear();
-
-
-        pendingPlayerSignal.Clear();
-
-
-        if (signalInputController != null)
+        if (
+            targetSignal == null ||
+            playerSignal == null
+        )
         {
-            signalInputController
-                .ClearInput();
+            return false;
         }
 
 
-        SetState(
+        if (
+            targetSignal.Count !=
+            playerSignal.Count
+        )
+        {
+            return false;
+        }
+
+
+        for (
+            int signalIndex = 0;
+            signalIndex < targetSignal.Count;
+            signalIndex++
+        )
+        {
+            if (
+                targetSignal[signalIndex] !=
+                playerSignal[signalIndex]
+            )
+            {
+                return false;
+            }
+        }
+
+
+        return true;
+    }
+
+
+    // ============================================================
+    // Mission終了
+    // ============================================================
+
+    private void FinishMission()
+    {
+        activeEnemy =
+            null;
+
+
+        expectedSignal.Clear();
+
+        submittedSignal.Clear();
+
+
+        enemySignalFinished =
+            false;
+
+
+        SetMissionState(
             MissionState.Searching
         );
 
@@ -907,69 +917,123 @@ public class CommunicationMissionManager : MonoBehaviour
         if (debugLog)
         {
             Debug.Log(
-                "次の通信対象を探索してください。"
+                "通信ミッション終了。次の敵艦を探索します。"
             );
         }
     }
 
 
     // ============================================================
-    // 敵艦破棄
+    // Enemy破棄通知
     // ============================================================
 
-    /// <summary>
-    /// 通信対象の敵艦が途中でDestroyされた場合に、
-    /// ミッションを安全に初期状態へ戻す。
-    /// </summary>
     public void NotifyEnemyDestroyed(
         EnemyShip enemyShip
     )
     {
         if (
             enemyShip == null ||
-            enemyShip != activeEnemyShip
+            enemyShip != activeEnemy
         )
         {
             return;
         }
 
 
-        if (resetMissionCoroutine != null)
+        // ========================================================
+        // まだ信号入力前ならMissionキャンセル
+        // ========================================================
+
+        if (
+            currentState ==
+                MissionState.Memorizing
+            ||
+            currentState ==
+                MissionState.WaitingForSubmerge
+        )
+        {
+            if (debugLog)
+            {
+                Debug.LogWarning(
+                    "通信対象の敵艦が破棄されたため、" +
+                    "通信ミッションを中止します。"
+                );
+            }
+
+
+            CancelCurrentMission();
+        }
+
+
+        // Inputting以降では信号パターンを既に保持しているので、
+        // EnemyShipが破棄されても処理を継続する。
+    }
+
+
+    // ============================================================
+    // Mission強制キャンセル
+    // ============================================================
+
+    public void CancelCurrentMission()
+    {
+        if (evaluationCoroutine != null)
         {
             StopCoroutine(
-                resetMissionCoroutine
+                evaluationCoroutine
             );
 
-            resetMissionCoroutine =
+
+            evaluationCoroutine =
                 null;
         }
 
 
         if (
-            communicationMastController !=
-            null &&
-            communicationMastController
-                .GetIsMastExposed()
+            fallbackTransmissionCoroutine !=
+            null
         )
         {
-            communicationMastController
-                .CancelTransmission();
+            StopCoroutine(
+                fallbackTransmissionCoroutine
+            );
+
+
+            fallbackTransmissionCoroutine =
+                null;
         }
 
 
-        ResetCurrentMission();
+        activeEnemy =
+            null;
+
+
+        expectedSignal.Clear();
+
+        submittedSignal.Clear();
+
+
+        enemySignalFinished =
+            false;
+
+
+        SetMissionState(
+            MissionState.Searching
+        );
     }
 
 
     // ============================================================
-    // 状態変更
+    // State変更
     // ============================================================
 
-    private void SetState(
+    private void SetMissionState(
         MissionState newState
     )
     {
-        if (currentState == newState)
+        if (
+            currentState ==
+            newState
+        )
         {
             return;
         }
@@ -979,6 +1043,15 @@ public class CommunicationMissionManager : MonoBehaviour
             newState;
 
 
+        if (debugLog)
+        {
+            Debug.Log(
+                "Communication Mission State → " +
+                currentState
+            );
+        }
+
+
         MissionStateChanged?.Invoke(
             currentState
         );
@@ -986,7 +1059,70 @@ public class CommunicationMissionManager : MonoBehaviour
 
 
     // ============================================================
-    // 状態取得
+    // Signal → 文字列
+    // ============================================================
+
+    private string ConvertSignalToString(
+        IReadOnlyList<SignalSymbol> signal
+    )
+    {
+        if (
+            signal == null ||
+            signal.Count <= 0
+        )
+        {
+            return string.Empty;
+        }
+
+
+        string result =
+            string.Empty;
+
+
+        for (
+            int signalIndex = 0;
+            signalIndex < signal.Count;
+            signalIndex++
+        )
+        {
+            switch (
+                signal[signalIndex]
+            )
+            {
+                case SignalSymbol.Short:
+
+                    result +=
+                        "・";
+
+                    break;
+
+
+                case SignalSymbol.Long:
+
+                    result +=
+                        "―";
+
+                    break;
+            }
+
+
+            if (
+                signalIndex <
+                signal.Count - 1
+            )
+            {
+                result +=
+                    " ";
+            }
+        }
+
+
+        return result;
+    }
+
+
+    // ============================================================
+    // Getter
     // ============================================================
 
     public MissionState GetCurrentState()
@@ -996,130 +1132,83 @@ public class CommunicationMissionManager : MonoBehaviour
     }
 
 
-    public EnemyShip GetActiveEnemyShip()
+    public MissionState GetMissionState()
     {
         return
-            activeEnemyShip;
+            currentState;
     }
 
 
-    // ============================================================
-    // 信号コピー
-    // ============================================================
-
-    private void CopySignal(
-        IReadOnlyList<SignalSymbol>
-            source,
-        List<SignalSymbol>
-            destination
-    )
+    public bool GetIsMissionActive()
     {
-        if (
-            source == null ||
-            destination == null
-        )
-        {
-            return;
-        }
-
-
-        for (
-            int i = 0;
-            i < source.Count;
-            i++
-        )
-        {
-            destination.Add(
-                source[i]
-            );
-        }
-    }
-
-
-    // ============================================================
-    // デバッグ文字列
-    // ============================================================
-
-    private string SignalToDebugString(
-        IReadOnlyList<SignalSymbol>
-            signal
-    )
-    {
-        if (
-            signal == null ||
-            signal.Count <= 0
-        )
-        {
-            return
-                "(empty)";
-        }
-
-
-        StringBuilder builder =
-            new();
-
-
-        for (
-            int i = 0;
-            i < signal.Count;
-            i++
-        )
-        {
-            switch (signal[i])
-            {
-                case SignalSymbol.Short:
-
-                    builder.Append(
-                        "・"
-                    );
-
-                    break;
-
-
-                case SignalSymbol.Long:
-
-                    builder.Append(
-                        "―"
-                    );
-
-                    break;
-            }
-
-
-            if (
-                i <
-                signal.Count - 1
-            )
-            {
-                builder.Append(
-                    " "
-                );
-            }
-        }
-
-
         return
-            builder.ToString();
+            currentState !=
+            MissionState.Searching;
+    }
+
+
+    public bool GetCanInputSignal()
+    {
+        return
+            currentState ==
+            MissionState.Inputting;
+    }
+
+
+    public int GetExpectedSignalCount()
+    {
+        return
+            expectedSignal.Count;
+    }
+
+
+    public IReadOnlyList<SignalSymbol>
+        GetExpectedSignalPattern()
+    {
+        return
+            expectedSignal;
+    }
+
+
+    public IReadOnlyList<SignalSymbol>
+        GetSubmittedSignalPattern()
+    {
+        return
+            submittedSignal;
+    }
+
+
+    public EnemyShip GetActiveEnemy()
+    {
+        return
+            activeEnemy;
+    }
+
+
+    public bool GetEnemySignalFinished()
+    {
+        return
+            enemySignalFinished;
+    }
+
+
+    public bool GetLastMissionWasSuccessful()
+    {
+        return
+            lastMissionWasSuccessful;
     }
 
 
     // ============================================================
-    // Inspector検証
+    // Inspector
     // ============================================================
 
     private void OnValidate()
     {
-        successScore =
+        evaluationDelay =
             Mathf.Max(
-                0,
-                successScore
-            );
-
-
-        failureScorePenalty =
-            Mathf.Max(
-                0,
-                failureScorePenalty
+                MinimumNonNegativeValue,
+                evaluationDelay
             );
 
 
@@ -1127,6 +1216,13 @@ public class CommunicationMissionManager : MonoBehaviour
             Mathf.Max(
                 MinimumNonNegativeValue,
                 resultStateDuration
+            );
+
+
+        fallbackTransmissionDuration =
+            Mathf.Max(
+                MinimumNonNegativeValue,
+                fallbackTransmissionDuration
             );
     }
 }

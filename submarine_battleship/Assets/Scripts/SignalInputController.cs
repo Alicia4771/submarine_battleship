@@ -1,63 +1,61 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+[DisallowMultipleComponent]
 public class SignalInputController : MonoBehaviour
 {
     // ============================================================
     // 定数
     // ============================================================
 
-    private const int ButtonReleased = 0;
-    private const int ButtonPressed = 1;
+    private const float DefaultLongPressThreshold =
+        0.40f;
 
-    private const float DefaultMinimumValidPressDuration = 0.05f;
-
-    private const float DefaultLongPressThreshold = 0.35f;
-
-    private const float MinimumNonNegativeValue = 0.0f;
+    private const float MinimumLongPressThreshold =
+        0.01f;
 
 
     // ============================================================
-    // Inspector設定
+    // Mission
     // ============================================================
 
-    [Header("References")]
+    [Header("Mission")]
 
     [SerializeField, Tooltip(
-        "通信ミッションを管理するManager。" +
-        "未設定の場合は自動検索する")]
+        "通信ミッションを管理するCommunicationMissionManager。" +
+        "未設定なら自動検索する")]
     private CommunicationMissionManager
         communicationMissionManager;
 
 
     // ============================================================
-    // Button4判定
+    // Button4
     // ============================================================
 
-    [Header("Signal Button")]
+    [Header("Button 4")]
 
     [SerializeField, Tooltip(
-        "これより短い押下は誤入力として無視する")]
-    [Min(MinimumNonNegativeValue)]
-    private float minimumValidPressDuration =
-        DefaultMinimumValidPressDuration;
-
-
-    [SerializeField, Tooltip(
-        "この時間以上押した場合を長信号と判定する")]
-    [Min(MinimumNonNegativeValue)]
+        "この時間未満のButton4押下を短信号「・」とする。" +
+        "この時間以上なら長信号「―」")]
+    [Min(MinimumLongPressThreshold)]
     private float longPressThreshold =
         DefaultLongPressThreshold;
 
 
+    [SerializeField, Tooltip(
+        "入力受付開始時にButton4が既に押されていた場合、" +
+        "一度離すまで入力として扱わない")]
+    private bool requireReleaseBeforeFirstInput =
+        true;
+
+
     // ============================================================
-    // デバッグ
+    // Debug
     // ============================================================
 
     [Header("Debug")]
 
-    [SerializeField, Tooltip(
-        "Button4の入力結果をConsoleへ表示する")]
+    [SerializeField]
     private bool debugLog =
         true;
 
@@ -67,27 +65,50 @@ public class SignalInputController : MonoBehaviour
     // ============================================================
 
     private readonly List<SignalSymbol>
-        inputSignal =
-            new();
+        enteredSignals =
+            new List<SignalSymbol>();
 
 
-    private int previousButtonState =
-        ButtonReleased;
-
-
-    private bool isPressing =
+    private bool inputEnabled =
         false;
 
 
-    // 通信入力状態へ入った時点で
-    // Button4が押しっぱなしだった場合の
-    // 誤入力防止用
-    private bool inputArmed =
+    private bool previousButtonPressed =
         false;
 
 
-    private float pressStartedTime =
+    private bool measuringPress =
+        false;
+
+
+    private bool waitingForInitialRelease =
+        false;
+
+
+    private float pressStartTime =
         0.0f;
+
+
+    // ============================================================
+    // Awake
+    // ============================================================
+
+    private void Awake()
+    {
+        ResolveReferences();
+    }
+
+
+    // ============================================================
+    // OnEnable
+    // ============================================================
+
+    private void OnEnable()
+    {
+        ResolveReferences();
+
+        SubscribeEvents();
+    }
 
 
     // ============================================================
@@ -96,26 +117,33 @@ public class SignalInputController : MonoBehaviour
 
     private void Start()
     {
+        ResolveReferences();
+
+        SubscribeEvents();
+
+
         if (
-            communicationMissionManager ==
+            communicationMissionManager !=
             null
         )
         {
-            communicationMissionManager =
-                FindFirstObjectByType<
-                    CommunicationMissionManager
-                >();
+            HandleMissionStateChanged(
+                communicationMissionManager
+                    .GetCurrentState()
+            );
         }
+    }
 
 
-        previousButtonState =
-            DataManager
-                .GetSensorButton4();
+    // ============================================================
+    // OnDisable
+    // ============================================================
 
+    private void OnDisable()
+    {
+        UnsubscribeEvents();
 
-        inputArmed =
-            previousButtonState ==
-            ButtonReleased;
+        ResetButtonState();
     }
 
 
@@ -130,102 +158,299 @@ public class SignalInputController : MonoBehaviour
             null
         )
         {
+            ResolveReferences();
+
+
+            if (
+                communicationMissionManager ==
+                null
+            )
+            {
+                return;
+            }
+        }
+
+
+        // ========================================================
+        // Inputting以外ではButton4を受け付けない
+        // ========================================================
+
+        if (
+            !inputEnabled ||
+            communicationMissionManager
+                .GetCurrentState()
+            !=
+            CommunicationMissionManager
+                .MissionState
+                .Inputting
+        )
+        {
+            SyncButtonState();
+
             return;
         }
 
 
-        int currentButtonState =
-            DataManager
-                .GetSensorButton4();
-
-
-        // =========================
-        // 通信入力期間外
-        // =========================
-
+        // 管理者メニュー等でTimeScale=0なら
+        // ゲーム入力として扱わない
         if (
-            !communicationMissionManager
-                .CanAcceptSignalInput()
+            Time.timeScale <=
+            Mathf.Epsilon
         )
         {
             CancelCurrentPress();
 
-
-            previousButtonState =
-                currentButtonState;
-
-
-            // Button4が離されていれば
-            // 次回Inputtingになった時に使用可能
-            inputArmed =
-                currentButtonState ==
-                ButtonReleased;
-
+            SyncButtonState();
 
             return;
         }
 
 
-        // =========================
-        // 押しっぱなし開始防止
-        // =========================
+        bool buttonPressed =
+            GetButton4Pressed();
 
-        if (!inputArmed)
+
+        // ========================================================
+        // 入力開始時に既にボタンが押されていた場合
+        // ========================================================
+
+        if (waitingForInitialRelease)
         {
-            if (
-                currentButtonState ==
-                ButtonReleased
-            )
+            if (!buttonPressed)
             {
-                inputArmed =
+                waitingForInitialRelease =
+                    false;
+
+
+                previousButtonPressed =
+                    false;
+
+
+                if (debugLog)
+                {
+                    Debug.Log(
+                        "Button4入力受付開始。"
+                    );
+                }
+            }
+            else
+            {
+                previousButtonPressed =
                     true;
             }
 
 
-            previousButtonState =
-                currentButtonState;
-
-
             return;
         }
 
 
-        // =========================
-        // 0 → 1
-        // =========================
+        // ========================================================
+        // 押した瞬間
+        // ========================================================
 
-        bool buttonPressedThisFrame =
-            currentButtonState ==
-            ButtonPressed &&
-            previousButtonState ==
-            ButtonReleased;
-
-
-        if (buttonPressedThisFrame)
+        if (
+            buttonPressed &&
+            !previousButtonPressed
+        )
         {
             BeginPress();
         }
 
 
-        // =========================
-        // 1 → 0
-        // =========================
+        // ========================================================
+        // 離した瞬間
+        // ========================================================
 
-        bool buttonReleasedThisFrame =
-            currentButtonState ==
-            ButtonReleased &&
-            previousButtonState ==
-            ButtonPressed;
-
-
-        if (buttonReleasedThisFrame)
+        if (
+            !buttonPressed &&
+            previousButtonPressed
+        )
         {
             EndPress();
         }
 
 
-        previousButtonState =
-            currentButtonState;
+        previousButtonPressed =
+            buttonPressed;
+    }
+
+
+    // ============================================================
+    // 参照取得
+    // ============================================================
+
+    private void ResolveReferences()
+    {
+        if (
+            communicationMissionManager !=
+            null
+        )
+        {
+            return;
+        }
+
+
+        communicationMissionManager =
+            FindFirstObjectByType<
+                CommunicationMissionManager
+            >();
+
+
+        if (
+            communicationMissionManager ==
+                null
+            &&
+            debugLog
+        )
+        {
+            Debug.LogWarning(
+                "SignalInputController: " +
+                "CommunicationMissionManagerが見つかりません。"
+            );
+        }
+    }
+
+
+    // ============================================================
+    // Event登録
+    // ============================================================
+
+    private void SubscribeEvents()
+    {
+        if (
+            communicationMissionManager ==
+            null
+        )
+        {
+            return;
+        }
+
+
+        // 二重登録防止
+        communicationMissionManager
+            .MissionStateChanged -=
+                HandleMissionStateChanged;
+
+
+        communicationMissionManager
+            .MissionStateChanged +=
+                HandleMissionStateChanged;
+    }
+
+
+    // ============================================================
+    // Event解除
+    // ============================================================
+
+    private void UnsubscribeEvents()
+    {
+        if (
+            communicationMissionManager ==
+            null
+        )
+        {
+            return;
+        }
+
+
+        communicationMissionManager
+            .MissionStateChanged -=
+                HandleMissionStateChanged;
+    }
+
+
+    // ============================================================
+    // Mission状態変更
+    // ============================================================
+
+    private void HandleMissionStateChanged(
+        CommunicationMissionManager
+            .MissionState newState
+    )
+    {
+        switch (newState)
+        {
+            // ====================================================
+            // 入力可能
+            // ====================================================
+
+            case CommunicationMissionManager
+                .MissionState
+                .Inputting:
+
+                BeginInputMode();
+
+                break;
+
+
+            // ====================================================
+            // それ以外
+            // ====================================================
+
+            default:
+
+                EndInputMode();
+
+                break;
+        }
+    }
+
+
+    // ============================================================
+    // 入力モード開始
+    // ============================================================
+
+    private void BeginInputMode()
+    {
+        enteredSignals.Clear();
+
+
+        inputEnabled =
+            true;
+
+
+        measuringPress =
+            false;
+
+
+        bool currentlyPressed =
+            GetButton4Pressed();
+
+
+        previousButtonPressed =
+            currentlyPressed;
+
+
+        waitingForInitialRelease =
+            requireReleaseBeforeFirstInput &&
+            currentlyPressed;
+
+
+        if (debugLog)
+        {
+            Debug.Log(
+                "信号入力受付開始。" +
+                " 必要記号数=" +
+                GetExpectedSignalCount()
+            );
+        }
+    }
+
+
+    // ============================================================
+    // 入力モード終了
+    // ============================================================
+
+    private void EndInputMode()
+    {
+        inputEnabled =
+            false;
+
+
+        CancelCurrentPress();
+
+
+        SyncButtonState();
     }
 
 
@@ -235,17 +460,17 @@ public class SignalInputController : MonoBehaviour
 
     private void BeginPress()
     {
-        if (isPressing)
+        if (!inputEnabled)
         {
             return;
         }
 
 
-        isPressing =
+        measuringPress =
             true;
 
 
-        pressStartedTime =
+        pressStartTime =
             Time.unscaledTime;
     }
 
@@ -256,49 +481,22 @@ public class SignalInputController : MonoBehaviour
 
     private void EndPress()
     {
-        if (!isPressing)
+        if (!measuringPress)
         {
             return;
         }
 
 
-        isPressing =
+        measuringPress =
             false;
 
 
         float pressDuration =
             Time.unscaledTime -
-            pressStartedTime;
+            pressStartTime;
 
 
-        // =========================
-        // 短すぎる入力
-        // =========================
-
-        if (
-            pressDuration <
-            minimumValidPressDuration
-        )
-        {
-            if (debugLog)
-            {
-                Debug.Log(
-                    "Button4入力が短すぎるため無視: " +
-                    pressDuration +
-                    "秒"
-                );
-            }
-
-
-            return;
-        }
-
-
-        // =========================
-        // 短・長判定
-        // =========================
-
-        SignalSymbol symbol;
+        SignalSymbol inputSymbol;
 
 
         if (
@@ -306,184 +504,298 @@ public class SignalInputController : MonoBehaviour
             longPressThreshold
         )
         {
-            symbol =
+            inputSymbol =
                 SignalSymbol.Long;
         }
         else
         {
-            symbol =
+            inputSymbol =
                 SignalSymbol.Short;
         }
 
 
-        AddSignalSymbol(
-            symbol,
+        RegisterSignal(
+            inputSymbol,
             pressDuration
         );
     }
 
 
     // ============================================================
-    // 信号追加
+    // 信号登録
     // ============================================================
 
-    private void AddSignalSymbol(
-        SignalSymbol symbol,
+    private void RegisterSignal(
+        SignalSymbol signalSymbol,
         float pressDuration
     )
     {
-        inputSignal.Add(
-            symbol
-        );
-
-
-        if (debugLog)
+        if (!inputEnabled)
         {
-            string symbolText =
-                symbol ==
-                SignalSymbol.Short
-                    ? "・"
-                    : "―";
-
-
-            Debug.Log(
-                "信号入力: " +
-                symbolText +
-                " (" +
-                pressDuration.ToString(
-                    "F3"
-                ) +
-                "秒)"
-            );
+            return;
         }
 
 
-        CheckInputCompleted();
-    }
+        int expectedCount =
+            GetExpectedSignalCount();
 
 
-    // ============================================================
-    // 入力完了判定
-    // ============================================================
-
-    private void CheckInputCompleted()
-    {
-        int expectedLength =
-            communicationMissionManager
-                .GetExpectedSignalLength();
-
-
-        if (expectedLength <= 0)
+        if (expectedCount <= 0)
         {
             return;
         }
 
 
         if (
-            inputSignal.Count <
-            expectedLength
+            enteredSignals.Count >=
+            expectedCount
         )
         {
             return;
         }
 
 
-        // =========================
-        // MissionManagerへコピー送信
-        // =========================
+        enteredSignals.Add(
+            signalSymbol
+        );
 
-        List<SignalSymbol>
-            submittedSignal =
-                new(
-                    inputSignal
+
+        if (debugLog)
+        {
+            Debug.Log(
+                "Button4入力: " +
+                (
+                    signalSymbol ==
+                    SignalSymbol.Short
+                        ? "・"
+                        : "―"
+                )
+                +
+                "  押下時間=" +
+                pressDuration.ToString("0.000") +
+                "秒"
+                +
+                "  [" +
+                enteredSignals.Count +
+                "/" +
+                expectedCount +
+                "]"
+            );
+        }
+
+
+        // ========================================================
+        // 必要数入力完了
+        // ========================================================
+
+        if (
+            enteredSignals.Count >=
+            expectedCount
+        )
+        {
+            CompleteInput();
+        }
+    }
+
+
+    // ============================================================
+    // 入力完了
+    // ============================================================
+
+    private void CompleteInput()
+    {
+        if (
+            communicationMissionManager ==
+            null
+        )
+        {
+            return;
+        }
+
+
+        inputEnabled =
+            false;
+
+
+        bool accepted =
+            communicationMissionManager
+                .SubmitPlayerSignal(
+                    enteredSignals
                 );
 
 
-        // これ以上入力させない
-        inputArmed =
-            false;
-
-
-        communicationMissionManager
-            .SubmitPlayerSignal(
-                submittedSignal
-            );
+        if (!accepted)
+        {
+            // 何らかの理由でMissionManagerが
+            // 受け付けられなかった場合
+            inputEnabled =
+                communicationMissionManager
+                    .GetCurrentState()
+                ==
+                CommunicationMissionManager
+                    .MissionState
+                    .Inputting;
+        }
     }
 
 
     // ============================================================
-    // 入力リセット
+    // Button4取得
     // ============================================================
 
-    public void ClearInput()
+    private bool GetButton4Pressed()
     {
-        inputSignal.Clear();
-
-
-        CancelCurrentPress();
-
-
-        int currentButtonState =
+        return
             DataManager
-                .GetSensorButton4();
-
-
-        previousButtonState =
-            currentButtonState;
-
-
-        inputArmed =
-            currentButtonState ==
-            ButtonReleased;
+                .GetSensorButton4()
+            ==
+            1;
     }
 
+
+    // ============================================================
+    // Button状態同期
+    // ============================================================
+
+    private void SyncButtonState()
+    {
+        previousButtonPressed =
+            GetButton4Pressed();
+    }
+
+
+    // ============================================================
+    // 現在の押下キャンセル
+    // ============================================================
 
     private void CancelCurrentPress()
     {
-        isPressing =
+        measuringPress =
             false;
 
 
-        pressStartedTime =
+        pressStartTime =
             0.0f;
     }
 
 
     // ============================================================
-    // 状態取得
+    // Button状態リセット
     // ============================================================
 
-    public int GetCurrentInputCount()
+    private void ResetButtonState()
+    {
+        inputEnabled =
+            false;
+
+
+        measuringPress =
+            false;
+
+
+        waitingForInitialRelease =
+            false;
+
+
+        previousButtonPressed =
+            false;
+
+
+        pressStartTime =
+            0.0f;
+    }
+
+
+    // ============================================================
+    // 必要数
+    // ============================================================
+
+    private int GetExpectedSignalCount()
+    {
+        if (
+            communicationMissionManager ==
+            null
+        )
+        {
+            return 0;
+        }
+
+
+        return
+            communicationMissionManager
+                .GetExpectedSignalCount();
+    }
+
+
+    // ============================================================
+    // Debug用
+    // ============================================================
+
+    public void AddShortSignalForDebug()
+    {
+        if (!inputEnabled)
+        {
+            return;
+        }
+
+
+        RegisterSignal(
+            SignalSymbol.Short,
+            0.0f
+        );
+    }
+
+
+    public void AddLongSignalForDebug()
+    {
+        if (!inputEnabled)
+        {
+            return;
+        }
+
+
+        RegisterSignal(
+            SignalSymbol.Long,
+            longPressThreshold
+        );
+    }
+
+
+    // ============================================================
+    // Getter
+    // ============================================================
+
+    public bool GetIsInputEnabled()
     {
         return
-            inputSignal.Count;
+            inputEnabled;
+    }
+
+
+    public int GetEnteredSignalCount()
+    {
+        return
+            enteredSignals.Count;
     }
 
 
     public IReadOnlyList<SignalSymbol>
-        GetCurrentInputSignal()
+        GetEnteredSignals()
     {
         return
-            inputSignal;
+            enteredSignals;
     }
 
 
     // ============================================================
-    // Inspector検証
+    // Inspector
     // ============================================================
 
     private void OnValidate()
     {
-        minimumValidPressDuration =
-            Mathf.Max(
-                MinimumNonNegativeValue,
-                minimumValidPressDuration
-            );
-
-
         longPressThreshold =
             Mathf.Max(
-                minimumValidPressDuration,
+                MinimumLongPressThreshold,
                 longPressThreshold
             );
     }

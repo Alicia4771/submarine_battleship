@@ -50,7 +50,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets/Scripts/AmbientContactSpawner.cs" />
+    <Compile Include="Assets/Scripts/EnemyVisualHighlight.cs" />
     <Compile Include="Assets/Scripts/tutorial_scene/TutorialSceneGameManager.cs" />
+    <Compile Include="Assets/Scripts/tuto_2/TutorialFlowControllerV2.cs" />
     <Compile Include="Assets/Scripts/menu_panel/MenuPanelManager.cs" />
     <Compile Include="Assets/Scripts/menu_panel/AdministratorMenuManager.cs" />
     <Compile Include="Assets/Scripts/DataManager.cs" />
@@ -58,6 +60,7 @@
     <Compile Include="Assets/Scripts/PeriscopeController.cs" />
     <Compile Include="Assets/Scripts/tutorial_scene/TutorialEnemyShip.cs" />
     <Compile Include="Assets/Scripts/Sonar.cs" />
+    <Compile Include="Assets/Scripts/tuto_2/TutorialEnemyControllerV2.cs" />
     <Compile Include="Assets/Scripts/UnderwaterVolumeSwitcher.cs" />
     <Compile Include="Assets/Scripts/start_scene/DelayedVideoLoop.cs" />
     <Compile Include="Assets/Scripts/SensorRead.cs" />
@@ -79,11 +82,16 @@
     <Compile Include="Assets/Scripts/SignalInputController.cs" />
     <Compile Include="Assets/Scripts/SignalSymbol.cs" />
     <Compile Include="Assets/Scripts/menu_panel/SceneSettingPanel.cs" />
+    <Compile Include="Assets/Scripts/tuto_2/SimpleTutorialFlowController.cs" />
     <Compile Include="Assets/Scripts/start_scene/StartSceneManager.cs" />
+    <Compile Include="Assets/Scripts/tuto_2/TutorialSensorBridgeV2.cs" />
     <Compile Include="Assets/Scripts/menu_panel/TimeScaleSettingPanel.cs" />
     <Compile Include="Assets/Scripts/GameManager.cs" />
+    <Compile Include="Assets/Scripts/tuto_2/TutoChooseSceneManager.cs" />
     <Compile Include="Assets/Scripts/SurfaceContactType.cs" />
+    <Compile Include="Assets/Scripts/CommunicationResultUIController.cs" />
     <Compile Include="Assets/Scripts/ship/Submarine.cs" />
+    <Compile Include="Assets/Scripts/tuto_2/TutorialSonarControllerV2.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets/TextMesh Pro/Shaders/TMPro.cginc" />

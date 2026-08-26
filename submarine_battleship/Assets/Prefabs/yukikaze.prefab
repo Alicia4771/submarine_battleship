@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 4215011259579492950}
   - component: {fileID: 1343757684990922026}
   - component: {fileID: 8752618860277402200}
+  - component: {fileID: 4897459454509010705}
   m_Layer: 0
   m_Name: yukikaze
   m_TagString: Untagged
@@ -93,22 +94,48 @@ MonoBehaviour:
   radiusRandomFactor: 0.05
   modelRotationOffset: 90
   periscopeFOV: 45
-  maximumDetectionDistance: 50
+  maximumDetectionDistance: 1000
   hideUntilDetected: 0
   shipVisual: {fileID: 0}
+  requiredObservationTimeBeforeSignal: 1
+  requireContinuousObservationUntilSignal: 1
   minimumSignalLength: 4
   maximumSignalLength: 4
-  signalRepeatCount: 1
+  signalRepeatCount: 2
+  startMarkerColor: {r: 0, g: 0.7100948, b: 0.8235294, a: 1}
+  startMarkerDuration: 0.4
+  startMarkerBlankDuration: 0.3
   shortSignalDuration: 0.15
   longSignalDuration: 0.65
   symbolBlankDuration: 0.15
   signalRepeatInterval: 1.5
+  shortSignalColor: {r: 1, g: 0, b: 0, a: 1}
+  longSignalColor: {r: 1, g: 0.5, b: 0, a: 1}
   signalLightLocalPosition: {x: 0, y: 3, z: 0}
-  signalColor: {r: 1, g: 0, b: 0, a: 1}
   signalIntensity: 1500
-  signalRange: 150
+  signalRange: 500
   signalLightType: 2
   communicationMissionManager: {fileID: 0}
+  debugLog: 0
+--- !u!114 &4897459454509010705
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1425566558001660272}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4bac72c62b380401b859a244daf15e84, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyVisualHighlight
+  visualRoot: {fileID: 6836123949372712024}
+  highlightColor: {r: 0, g: 1, b: 0, a: 1}
+  useEmission: 1
+  emissionIntensity: 1.5
+  includeInactiveObjects: 1
+  includeAllRendererTypes: 1
+  debugLog: 0
 --- !u!1001 &6436897303325033395
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -119,15 +146,15 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: dc83e2179ce9e4462a5716d50daf5571, type: 3}
       propertyPath: m_LocalScale.x
-      value: 20
+      value: 40
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: dc83e2179ce9e4462a5716d50daf5571, type: 3}
       propertyPath: m_LocalScale.y
-      value: 20
+      value: 40
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: dc83e2179ce9e4462a5716d50daf5571, type: 3}
       propertyPath: m_LocalScale.z
-      value: 20
+      value: 40
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: dc83e2179ce9e4462a5716d50daf5571, type: 3}
       propertyPath: m_LocalPosition.x

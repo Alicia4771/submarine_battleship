@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 [RequireComponent(
     typeof(Rigidbody),
@@ -29,7 +30,6 @@ public class EnemyShip : Ship
     private const float DefaultMaximumDetectionDistance =
         50.0f;
 
-
     private const float MinimumPeriscopeFOV =
         1.0f;
 
@@ -37,11 +37,17 @@ public class EnemyShip : Ship
         179.0f;
 
 
-    // 敵艦を視界に入れてから
-    // 通信信号開始までに必要な観察時間
+    // ============================================================
+    // 観察時間
+    // ============================================================
+
     private const float DefaultRequiredObservationTime =
         1.5f;
 
+
+    // ============================================================
+    // 信号パターン
+    // ============================================================
 
     private const int DefaultMinimumSignalLength =
         4;
@@ -49,6 +55,19 @@ public class EnemyShip : Ship
     private const int DefaultMaximumSignalLength =
         4;
 
+    private const int MinimumSignalLength =
+        1;
+
+
+    // ============================================================
+    // 信号時間
+    // ============================================================
+
+    private const float DefaultStartMarkerDuration =
+        0.4f;
+
+    private const float DefaultStartMarkerBlankDuration =
+        0.3f;
 
     private const float DefaultShortSignalDuration =
         0.15f;
@@ -63,9 +82,16 @@ public class EnemyShip : Ship
     private const int DefaultSignalRepeatCount =
         1;
 
+    private const int MinimumSignalRepeatCount =
+        1;
+
     private const float DefaultSignalRepeatInterval =
         1.5f;
 
+
+    // ============================================================
+    // 信号ライト
+    // ============================================================
 
     private const float DefaultSignalIntensity =
         1500.0f;
@@ -74,19 +100,15 @@ public class EnemyShip : Ship
         150.0f;
 
 
+    // ============================================================
+    // その他
+    // ============================================================
+
     private const float ShortSignalProbability =
         0.5f;
 
-
     private const float MinimumNonNegativeValue =
         0.0f;
-
-
-    private const int MinimumSignalLength =
-        1;
-
-    private const int MinimumSignalRepeatCount =
-        1;
 
 
     private static readonly float FullCircleRadians =
@@ -100,6 +122,30 @@ public class EnemyShip : Ship
                 0.0f,
                 3.0f,
                 0.0f
+            );
+
+
+    // ============================================================
+    // デフォルト色
+    // ============================================================
+
+    private static readonly Color
+        DefaultStartMarkerColor =
+            Color.yellow;
+
+
+    private static readonly Color
+        DefaultShortSignalColor =
+            Color.red;
+
+
+    private static readonly Color
+        DefaultLongSignalColor =
+            new Color(
+                1.0f,
+                0.5f,
+                0.0f,
+                1.0f
             );
 
 
@@ -210,10 +256,37 @@ public class EnemyShip : Ship
 
 
     [SerializeField, Tooltip(
-        "同じ信号を何回繰り返すか")]
+        "同じ信号を何回繰り返すか。" +
+        "各繰り返しの先頭では黄色の開始合図を点灯する")]
     [Min(MinimumSignalRepeatCount)]
     private int signalRepeatCount =
         DefaultSignalRepeatCount;
+
+
+    // ============================================================
+    // 開始合図
+    // ============================================================
+
+    [Header("Cycle Start Marker")]
+
+    [SerializeField, Tooltip(
+        "各信号周期の先頭で点灯する開始合図の色")]
+    private Color startMarkerColor =
+        DefaultStartMarkerColor;
+
+
+    [SerializeField, Tooltip(
+        "黄色の開始合図を点灯する時間")]
+    [Min(MinimumNonNegativeValue)]
+    private float startMarkerDuration =
+        DefaultStartMarkerDuration;
+
+
+    [SerializeField, Tooltip(
+        "開始合図が消えてから最初の信号までの待ち時間")]
+    [Min(MinimumNonNegativeValue)]
+    private float startMarkerBlankDuration =
+        DefaultStartMarkerBlankDuration;
 
 
     // ============================================================
@@ -223,31 +296,50 @@ public class EnemyShip : Ship
     [Header("Signal Timing")]
 
     [SerializeField, Tooltip(
-        "短信号の点灯時間")]
+        "短信号「・」の点灯時間")]
     [Min(MinimumNonNegativeValue)]
     private float shortSignalDuration =
         DefaultShortSignalDuration;
 
 
     [SerializeField, Tooltip(
-        "長信号の点灯時間")]
+        "長信号「―」の点灯時間")]
     [Min(MinimumNonNegativeValue)]
     private float longSignalDuration =
         DefaultLongSignalDuration;
 
 
     [SerializeField, Tooltip(
-        "各記号の間の消灯時間")]
+        "各信号記号の間の消灯時間")]
     [Min(MinimumNonNegativeValue)]
     private float symbolBlankDuration =
         DefaultSymbolBlankDuration;
 
 
     [SerializeField, Tooltip(
-        "信号を複数回繰り返す場合の待ち時間")]
+        "1周期終了から次の黄色い開始合図までの待ち時間")]
     [Min(MinimumNonNegativeValue)]
     private float signalRepeatInterval =
         DefaultSignalRepeatInterval;
+
+
+    // ============================================================
+    // 信号色
+    // ============================================================
+
+    [Header("Signal Colors")]
+
+    [FormerlySerializedAs("signalColor")]
+    [SerializeField, Tooltip(
+        "短信号「・」の色")]
+    private Color shortSignalColor =
+        DefaultShortSignalColor;
+
+
+    [SerializeField, Tooltip(
+        "長信号「―」の色")]
+    private Color longSignalColor =
+        DefaultLongSignalColor;
 
 
     // ============================================================
@@ -264,12 +356,6 @@ public class EnemyShip : Ship
             DefaultSignalLightLocalPosition.y,
             DefaultSignalLightLocalPosition.z
         );
-
-
-    [SerializeField, Tooltip(
-        "信号ライトの色")]
-    private Color signalColor =
-        Color.red;
 
 
     [SerializeField, Tooltip(
@@ -312,7 +398,7 @@ public class EnemyShip : Ship
     [Header("Debug")]
 
     [SerializeField, Tooltip(
-        "観察開始・解除・信号開始をConsoleへ表示する")]
+        "観察・信号開始などをConsoleへ表示する")]
     private bool debugLog =
         false;
 
@@ -344,7 +430,7 @@ public class EnemyShip : Ship
 
 
     // ============================================================
-    // 発見状態
+    // 信号状態
     // ============================================================
 
     private bool isDetected =
@@ -475,7 +561,7 @@ public class EnemyShip : Ship
 
 
         // =========================
-        // 信号
+        // 信号パターン
         // =========================
 
         GenerateSignalPattern();
@@ -554,11 +640,7 @@ public class EnemyShip : Ship
         }
 
 
-        if (signalLight != null)
-        {
-            signalLight.enabled =
-                false;
-        }
+        TurnOffSignalLight();
 
 
         if (
@@ -635,10 +717,6 @@ public class EnemyShip : Ship
             );
 
 
-        // =========================
-        // 開始角度
-        // =========================
-
         currentMovementAngle =
             Random.Range(
                 MinimumNonNegativeValue,
@@ -646,17 +724,14 @@ public class EnemyShip : Ship
             );
 
 
-        // =========================
-        // 現在のスポーン位置を
-        // 円周上の初期位置として使用
-        // =========================
-
         Vector3 radialOffset =
             CalculateMovementRadialOffset(
                 currentMovementAngle
             );
 
 
+        // 現在のスポーン位置を
+        // 円周上の初期位置として扱う
         centerPoint =
             shipRigidbody.position -
             radialOffset;
@@ -710,10 +785,6 @@ public class EnemyShip : Ship
             MinimumNonNegativeValue;
 
 
-        // =========================
-        // 船首方向
-        // =========================
-
         if (
             moveDirection.sqrMagnitude >
             Mathf.Epsilon
@@ -739,10 +810,6 @@ public class EnemyShip : Ship
             );
         }
 
-
-        // =========================
-        // 位置
-        // =========================
 
         shipRigidbody.MovePosition(
             nextPosition
@@ -782,7 +849,7 @@ public class EnemyShip : Ship
 
 
         // ========================================================
-        // まだ一度も視界に入っていない
+        // 最初に視界へ入った瞬間
         // ========================================================
 
         if (!observationStarted)
@@ -812,25 +879,23 @@ public class EnemyShip : Ship
 
 
         // ========================================================
-        // 継続観察が必要な場合
+        // 継続観察
         // ========================================================
 
         if (
-            requireContinuousObservationUntilSignal
+            requireContinuousObservationUntilSignal &&
+            !targetCurrentlyInView
         )
         {
-            if (!targetCurrentlyInView)
-            {
-                ResetObservation();
+            ResetObservation();
 
 
-                return;
-            }
+            return;
         }
 
 
         // ========================================================
-        // 観察時間0なら即開始
+        // 待ち時間なし
         // ========================================================
 
         if (
@@ -846,48 +911,36 @@ public class EnemyShip : Ship
 
 
         // ========================================================
-        // 観察時間加算
-        // ========================================================
-        //
-        // Continuous = ON
-        //   → 視界に入っている間だけここまで到達する。
-        //
-        // Continuous = OFF
-        //   → 一度発見すれば視界から外れても時間が進む。
+        // 観察時間
         // ========================================================
 
         currentObservationTime +=
             Time.deltaTime;
 
 
-        // ========================================================
-        // 必要時間に達した
-        // ========================================================
-
         if (
-            currentObservationTime >=
+            currentObservationTime <
             requiredObservationTimeBeforeSignal
         )
         {
-            currentObservationTime =
-                requiredObservationTimeBeforeSignal;
-
-
-            TryDetectEnemy();
+            return;
         }
+
+
+        currentObservationTime =
+            requiredObservationTimeBeforeSignal;
+
+
+        TryDetectEnemy();
     }
 
 
     // ============================================================
-    // 潜望鏡の視界内か
+    // 敵艦が潜望鏡の視界内か
     // ============================================================
 
     private bool IsEnemyInsidePeriscopeView()
     {
-        // =========================
-        // 潜望鏡が海面下
-        // =========================
-
         if (
             !DataManager
                 .GetIsPeriscopeAboveSurface()
@@ -922,7 +975,6 @@ public class EnemyShip : Ship
             periscopePosition;
 
 
-        // 水平方向だけで判定
         directionToEnemy.y =
             MinimumNonNegativeValue;
 
@@ -967,7 +1019,7 @@ public class EnemyShip : Ship
 
 
         // =========================
-        // FOV
+        // 視野角
         // =========================
 
         float angle =
@@ -1032,9 +1084,9 @@ public class EnemyShip : Ship
         }
 
 
-        // =========================
+        // ========================================================
         // MissionManager
-        // =========================
+        // ========================================================
 
         if (
             communicationMissionManager !=
@@ -1051,8 +1103,6 @@ public class EnemyShip : Ship
 
             if (!accepted)
             {
-                // 他の通信ミッション中などの場合は、
-                // 再び観察からやり直せるようにする
                 ResetObservation();
 
 
@@ -1060,10 +1110,6 @@ public class EnemyShip : Ship
             }
         }
 
-
-        // =========================
-        // 発見確定
-        // =========================
 
         isDetected =
             true;
@@ -1084,15 +1130,10 @@ public class EnemyShip : Ship
         {
             Debug.Log(
                 gameObject.name +
-                " の観察が完了しました。" +
-                "通信信号を開始します。"
+                " の観察完了。信号を開始します。"
             );
         }
 
-
-        // =========================
-        // 信号開始
-        // =========================
 
         StartSignal();
     }
@@ -1179,8 +1220,10 @@ public class EnemyShip : Ship
             signalLightType;
 
 
+        // 初期色。
+        // 実際の点灯時には毎回変更する。
         signalLight.color =
-            signalColor;
+            startMarkerColor;
 
 
         signalLight.intensity =
@@ -1223,7 +1266,7 @@ public class EnemyShip : Ship
 
 
     // ============================================================
-    // 信号コルーチン
+    // 信号全体
     // ============================================================
 
     private IEnumerator FlashSignalRoutine()
@@ -1241,6 +1284,29 @@ public class EnemyShip : Ship
             repeatIndex++
         )
         {
+            // ====================================================
+            // 各周期の開始合図
+            // ====================================================
+            //
+            // 黄色
+            // ↓
+            // 消灯
+            // ↓
+            // 実際の信号
+            // ====================================================
+
+            yield return
+                PlayColoredFlash(
+                    startMarkerColor,
+                    startMarkerDuration,
+                    startMarkerBlankDuration
+                );
+
+
+            // ====================================================
+            // 信号本体
+            // ====================================================
+
             for (
                 int symbolIndex = 0;
                 symbolIndex < signalPattern.Count;
@@ -1253,6 +1319,12 @@ public class EnemyShip : Ship
                     ];
 
 
+                Color symbolColor =
+                    GetSignalColor(
+                        symbol
+                    );
+
+
                 float lightDuration =
                     GetSignalDuration(
                         symbol
@@ -1260,12 +1332,17 @@ public class EnemyShip : Ship
 
 
                 yield return
-                    PlayFlash(
+                    PlayColoredFlash(
+                        symbolColor,
                         lightDuration,
                         symbolBlankDuration
                     );
             }
 
+
+            // ====================================================
+            // 次の周期まで待機
+            // ====================================================
 
             if (
                 repeatIndex <
@@ -1289,10 +1366,11 @@ public class EnemyShip : Ship
 
 
     // ============================================================
-    // 1回の点滅
+    // 色付き点灯
     // ============================================================
 
-    private IEnumerator PlayFlash(
+    private IEnumerator PlayColoredFlash(
+        Color lightColor,
         float lightDuration,
         float blankDuration
     )
@@ -1304,6 +1382,14 @@ public class EnemyShip : Ship
 
 
         // =========================
+        // 色を設定
+        // =========================
+
+        signalLight.color =
+            lightColor;
+
+
+        // =========================
         // 点灯
         // =========================
 
@@ -1311,10 +1397,16 @@ public class EnemyShip : Ship
             true;
 
 
-        yield return
-            new WaitForSeconds(
-                lightDuration
-            );
+        if (
+            lightDuration >
+            MinimumNonNegativeValue
+        )
+        {
+            yield return
+                new WaitForSeconds(
+                    lightDuration
+                );
+        }
 
 
         // =========================
@@ -1325,15 +1417,51 @@ public class EnemyShip : Ship
             false;
 
 
-        yield return
-            new WaitForSeconds(
-                blankDuration
-            );
+        if (
+            blankDuration >
+            MinimumNonNegativeValue
+        )
+        {
+            yield return
+                new WaitForSeconds(
+                    blankDuration
+                );
+        }
     }
 
 
     // ============================================================
-    // 記号点灯時間
+    // 記号ごとの色
+    // ============================================================
+
+    private Color GetSignalColor(
+        SignalSymbol symbol
+    )
+    {
+        switch (symbol)
+        {
+            case SignalSymbol.Short:
+
+                return
+                    shortSignalColor;
+
+
+            case SignalSymbol.Long:
+
+                return
+                    longSignalColor;
+
+
+            default:
+
+                return
+                    shortSignalColor;
+        }
+    }
+
+
+    // ============================================================
+    // 記号ごとの点灯時間
     // ============================================================
 
     private float GetSignalDuration(
@@ -1363,6 +1491,23 @@ public class EnemyShip : Ship
 
 
     // ============================================================
+    // ライト消灯
+    // ============================================================
+
+    private void TurnOffSignalLight()
+    {
+        if (signalLight == null)
+        {
+            return;
+        }
+
+
+        signalLight.enabled =
+            false;
+    }
+
+
+    // ============================================================
     // 信号終了
     // ============================================================
 
@@ -1378,11 +1523,7 @@ public class EnemyShip : Ship
             true;
 
 
-        if (signalLight != null)
-        {
-            signalLight.enabled =
-                false;
-        }
+        TurnOffSignalLight();
 
 
         if (
@@ -1432,7 +1573,7 @@ public class EnemyShip : Ship
 
 
     // ============================================================
-    // 観察状態取得
+    // 観察状態
     // ============================================================
 
     public bool GetIsTargetCurrentlyInView()
@@ -1504,7 +1645,7 @@ public class EnemyShip : Ship
 
 
     // ============================================================
-    // Inspector値検証
+    // Inspector検証
     // ============================================================
 
     private void OnValidate()
@@ -1562,6 +1703,20 @@ public class EnemyShip : Ship
             Mathf.Max(
                 MinimumSignalRepeatCount,
                 signalRepeatCount
+            );
+
+
+        startMarkerDuration =
+            Mathf.Max(
+                MinimumNonNegativeValue,
+                startMarkerDuration
+            );
+
+
+        startMarkerBlankDuration =
+            Mathf.Max(
+                MinimumNonNegativeValue,
+                startMarkerBlankDuration
             );
 
 

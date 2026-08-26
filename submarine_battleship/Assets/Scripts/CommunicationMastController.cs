@@ -6,15 +6,15 @@ using UnityEngine;
 public class CommunicationMastController : MonoBehaviour
 {
     // ============================================================
-    // 通信マスト状態
+    // State
     // ============================================================
 
     public enum MastState
     {
-        Lowered,
-        Raising,
-        Transmitting,
-        Lowering
+        Lowered = 0,
+        Raising = 1,
+        Transmitting = 2,
+        Lowering = 3
     }
 
 
@@ -22,151 +22,111 @@ public class CommunicationMastController : MonoBehaviour
     // 定数
     // ============================================================
 
-    private const float DefaultLoweredLocalY = 0.0f;
-    private const float DefaultRaisedLocalY = 2.0f;
+    private const float DefaultRaiseHeight =
+        1.0f;
 
-    private const float DefaultRaiseDuration = 0.5f;
-    private const float DefaultTransmissionDuration = 2.0f;
-    private const float DefaultLowerDuration = 0.5f;
+    private const float DefaultRaiseDuration =
+        0.5f;
 
-    private const float MinimumDuration = 0.0f;
+    private const float DefaultTransmissionDuration =
+        2.0f;
 
-    private const float NormalizedMinimum = 0.0f;
-    private const float NormalizedMaximum = 1.0f;
+    private const float DefaultLowerDuration =
+        0.5f;
 
-    private const float DurationEpsilon = 0.0001f;
+    private const float MinimumNonNegativeValue =
+        0.0f;
 
 
     // ============================================================
-    // Inspector設定
+    // Event
     // ============================================================
 
-    [Header("Mast Transform")]
+    public event Action<MastState>
+        MastStateChanged;
+
+
+    public event Action
+        TransmissionCompleted;
+
+
+    // ============================================================
+    // Mast
+    // ============================================================
+
+    [Header("Mast")]
 
     [SerializeField, Tooltip(
-        "上下移動させる通信マストのTransform。" +
+        "上下移動させる通信マスト。" +
         "未設定の場合はこのGameObject自身を使用する")]
     private Transform mastTransform;
 
 
     [SerializeField, Tooltip(
-        "ゲーム開始時に通信マストを格納位置へ移動する")]
-    private bool initializeAtLoweredPosition = true;
+        "格納位置からどれだけ上へ伸ばすか")]
+    [Min(MinimumNonNegativeValue)]
+    private float raiseHeight =
+        DefaultRaiseHeight;
 
 
     // ============================================================
-    // マスト位置
+    // Timing
     // ============================================================
 
-    [Header("Mast Position")]
+    [Header("Timing")]
 
     [SerializeField, Tooltip(
-        "通信マスト格納時のLocal Y")]
-    private float loweredLocalY =
-        DefaultLoweredLocalY;
-
-
-    [SerializeField, Tooltip(
-        "通信マスト展開時のLocal Y")]
-    private float raisedLocalY =
-        DefaultRaisedLocalY;
-
-
-    // ============================================================
-    // 動作時間
-    // ============================================================
-
-    [Header("Mast Timing")]
-
-    [SerializeField, Tooltip(
-        "通信マストを展開するのにかかる時間")]
-    [Min(MinimumDuration)]
+        "通信マストを上げる時間")]
+    [Min(MinimumNonNegativeValue)]
     private float raiseDuration =
         DefaultRaiseDuration;
 
 
     [SerializeField, Tooltip(
-        "通信マスト展開後、司令部へ送信する時間")]
-    [Min(MinimumDuration)]
+        "通信マストが上がった状態で送信する時間")]
+    [Min(MinimumNonNegativeValue)]
     private float transmissionDuration =
         DefaultTransmissionDuration;
 
 
     [SerializeField, Tooltip(
-        "通信マストを格納するのにかかる時間")]
-    [Min(MinimumDuration)]
+        "通信マストを下げる時間")]
+    [Min(MinimumNonNegativeValue)]
     private float lowerDuration =
         DefaultLowerDuration;
 
 
     // ============================================================
-    // 表示
-    // ============================================================
-
-    [Header("Visual")]
-
-    [SerializeField, Tooltip(
-        "ONの場合、Mast Transformを実際に上下移動させる。" +
-        "OFFでも通信時間・状態管理は行われる")]
-    private bool animateMast = true;
-
-
-    // ============================================================
-    // デバッグ
+    // Debug
     // ============================================================
 
     [Header("Debug")]
 
-    [SerializeField, Tooltip(
-        "通信マストの状態をConsoleへ表示する")]
-    private bool debugLog = true;
+    [SerializeField]
+    private bool debugLog =
+        true;
 
 
     // ============================================================
     // 内部状態
     // ============================================================
 
+    [SerializeField]
     private MastState currentState =
         MastState.Lowered;
 
 
-    private Coroutine transmissionCoroutine;
+    private Vector3 loweredLocalPosition;
+
+    private Vector3 raisedLocalPosition;
 
 
-    // ============================================================
-    // イベント
-    // ============================================================
-
-    /// <summary>
-    /// 通信マストが完全に上がり、
-    /// 実際の送信を開始した時に発生する。
-    /// </summary>
-    public event Action TransmissionStarted;
+    private Coroutine
+        transmissionCoroutine;
 
 
-    /// <summary>
-    /// 通信が終了し、
-    /// 通信マストの格納まで完了した時に発生する。
-    /// </summary>
-    public event Action TransmissionCompleted;
-
-
-    /// <summary>
-    /// マスト状態が変化した時に発生する。
-    /// 第4段階の警戒度システムなどでも利用できる。
-    /// </summary>
-    public event Action<MastState> MastStateChanged;
-
-
-    // ============================================================
-    // Reset
-    // ============================================================
-
-    private void Reset()
-    {
-        mastTransform =
-            transform;
-    }
+    private Action
+        completionCallback;
 
 
     // ============================================================
@@ -175,71 +135,67 @@ public class CommunicationMastController : MonoBehaviour
 
     private void Awake()
     {
-        ResolveReferences();
-
-        ValidateSettings();
-    }
-
-
-    // ============================================================
-    // Start
-    // ============================================================
-
-    private void Start()
-    {
-        if (initializeAtLoweredPosition)
-        {
-            SetMastLocalY(
-                loweredLocalY
-            );
-        }
-
-
-        SetState(
-            MastState.Lowered
-        );
-    }
-
-
-    // ============================================================
-    // 参照取得
-    // ============================================================
-
-    private void ResolveReferences()
-    {
         if (mastTransform == null)
         {
             mastTransform =
                 transform;
         }
+
+
+        // シーン上で設定してある現在位置を
+        // 完全格納位置として扱う
+        loweredLocalPosition =
+            mastTransform.localPosition;
+
+
+        raisedLocalPosition =
+            loweredLocalPosition +
+            Vector3.up *
+            raiseHeight;
+
+
+        currentState =
+            MastState.Lowered;
     }
 
 
     // ============================================================
-    // 通信開始
+    // Transmission開始
     // ============================================================
 
-    /// <summary>
-    /// 通信マストによる送信処理を開始する。
-    ///
-    /// 既に通信処理中の場合はfalseを返す。
-    /// </summary>
-    public bool TryStartTransmission()
+    public bool BeginTransmission()
+    {
+        return
+            BeginTransmission(
+                null
+            );
+    }
+
+
+    public bool BeginTransmission(
+        Action onCompleted
+    )
     {
         if (
-            transmissionCoroutine != null ||
-            currentState != MastState.Lowered
+            currentState !=
+            MastState.Lowered
         )
         {
-            if (debugLog)
-            {
-                Debug.LogWarning(
-                    "通信マストは既に使用中です。"
-                );
-            }
-
             return false;
         }
+
+
+        if (
+            transmissionCoroutine !=
+            null
+        )
+        {
+            return false;
+        }
+
+
+        completionCallback =
+            onCompleted;
 
 
         transmissionCoroutine =
@@ -252,15 +208,31 @@ public class CommunicationMastController : MonoBehaviour
     }
 
 
+    // 以前のコードなどから呼びやすいように
+    // Aliasも用意
+    public bool StartTransmission()
+    {
+        return
+            BeginTransmission();
+    }
+
+
+    public bool StartTransmissionSequence()
+    {
+        return
+            BeginTransmission();
+    }
+
+
     // ============================================================
     // 通信処理
     // ============================================================
 
     private IEnumerator TransmissionRoutine()
     {
-        // =========================
-        // マスト展開
-        // =========================
+        // ========================================================
+        // 上昇
+        // ========================================================
 
         SetState(
             MastState.Raising
@@ -270,21 +242,26 @@ public class CommunicationMastController : MonoBehaviour
         if (debugLog)
         {
             Debug.Log(
-                "通信マストを展開します。"
+                "通信マスト展開開始"
             );
         }
 
 
         yield return
-            MoveMast(
-                raisedLocalY,
+            MoveMastRoutine(
+                mastTransform.localPosition,
+                raisedLocalPosition,
                 raiseDuration
             );
 
 
-        // =========================
+        mastTransform.localPosition =
+            raisedLocalPosition;
+
+
+        // ========================================================
         // 送信
-        // =========================
+        // ========================================================
 
         SetState(
             MastState.Transmitting
@@ -294,23 +271,26 @@ public class CommunicationMastController : MonoBehaviour
         if (debugLog)
         {
             Debug.Log(
-                "司令部へ送信中..."
+                "通信マスト送信中"
             );
         }
 
 
-        TransmissionStarted?.Invoke();
+        if (
+            transmissionDuration >
+            MinimumNonNegativeValue
+        )
+        {
+            yield return
+                new WaitForSeconds(
+                    transmissionDuration
+                );
+        }
 
 
-        yield return
-            WaitForDuration(
-                transmissionDuration
-            );
-
-
-        // =========================
-        // マスト格納
-        // =========================
+        // ========================================================
+        // 下降
+        // ========================================================
 
         SetState(
             MastState.Lowering
@@ -320,103 +300,100 @@ public class CommunicationMastController : MonoBehaviour
         if (debugLog)
         {
             Debug.Log(
-                "通信終了。通信マストを格納します。"
+                "通信マスト格納開始"
             );
         }
 
 
         yield return
-            MoveMast(
-                loweredLocalY,
+            MoveMastRoutine(
+                mastTransform.localPosition,
+                loweredLocalPosition,
                 lowerDuration
             );
 
 
-        // =========================
-        // 完了
-        // =========================
+        mastTransform.localPosition =
+            loweredLocalPosition;
+
+
+        // ========================================================
+        // 完全格納
+        // ========================================================
 
         SetState(
             MastState.Lowered
         );
 
 
+        if (debugLog)
+        {
+            Debug.Log(
+                "通信マスト完全格納"
+            );
+        }
+
+
         transmissionCoroutine =
             null;
 
 
-        if (debugLog)
-        {
-            Debug.Log(
-                "通信マストの格納が完了しました。"
-            );
-        }
+        Action callback =
+            completionCallback;
 
+
+        completionCallback =
+            null;
+
+
+        // ========================================================
+        // 通信終了Event
+        // ========================================================
 
         TransmissionCompleted?.Invoke();
+
+
+        callback?.Invoke();
     }
 
 
     // ============================================================
-    // マスト移動
+    // Mast移動
     // ============================================================
 
-    private IEnumerator MoveMast(
-        float targetLocalY,
+    private IEnumerator MoveMastRoutine(
+        Vector3 startPosition,
+        Vector3 endPosition,
         float duration
     )
     {
-        // Transformが存在しない場合でも、
-        // 機械的な動作時間だけは再現する
         if (mastTransform == null)
         {
-            yield return
-                WaitForDuration(
-                    duration
-                );
-
             yield break;
         }
 
 
-        float startLocalY =
-            mastTransform.localPosition.y;
-
-
-        // アニメーション無効の場合
-        if (!animateMast)
+        if (
+            duration <=
+            MinimumNonNegativeValue
+        )
         {
-            SetMastLocalY(
-                targetLocalY
-            );
+            mastTransform.localPosition =
+                endPosition;
 
-
-            yield return
-                WaitForDuration(
-                    duration
-                );
-
-
-            yield break;
-        }
-
-
-        // 動作時間0なら即座に移動
-        if (duration <= DurationEpsilon)
-        {
-            SetMastLocalY(
-                targetLocalY
-            );
 
             yield break;
         }
 
 
         float elapsedTime =
-            0.0f;
+            MinimumNonNegativeValue;
 
 
-        while (elapsedTime < duration)
+        while (
+            elapsedTime <
+            duration
+        )
         {
             elapsedTime +=
                 Time.deltaTime;
@@ -429,148 +406,36 @@ public class CommunicationMastController : MonoBehaviour
                 );
 
 
-            // 急に動き始めたり止まったりしないよう
-            // SmoothStepで補間する
-            float smoothTime =
-                Mathf.SmoothStep(
-                    NormalizedMinimum,
-                    NormalizedMaximum,
+            mastTransform.localPosition =
+                Vector3.Lerp(
+                    startPosition,
+                    endPosition,
                     normalizedTime
                 );
 
 
-            float currentLocalY =
-                Mathf.Lerp(
-                    startLocalY,
-                    targetLocalY,
-                    smoothTime
-                );
-
-
-            SetMastLocalY(
-                currentLocalY
-            );
-
-
-            yield return null;
-        }
-
-
-        // 浮動小数点誤差を防ぐため
-        // 最後に正確な位置を設定する
-        SetMastLocalY(
-            targetLocalY
-        );
-    }
-
-
-    // ============================================================
-    // 指定時間待機
-    // ============================================================
-
-    private IEnumerator WaitForDuration(
-        float duration
-    )
-    {
-        if (duration <= DurationEpsilon)
-        {
-            yield break;
-        }
-
-
-        float elapsedTime =
-            0.0f;
-
-
-        while (elapsedTime < duration)
-        {
-            elapsedTime +=
-                Time.deltaTime;
-
-            yield return null;
-        }
-    }
-
-
-    // ============================================================
-    // マスト位置設定
-    // ============================================================
-
-    private void SetMastLocalY(
-        float localY
-    )
-    {
-        if (mastTransform == null)
-        {
-            return;
-        }
-
-
-        Vector3 localPosition =
-            mastTransform.localPosition;
-
-
-        localPosition.y =
-            localY;
-
-
-        mastTransform.localPosition =
-            localPosition;
-    }
-
-
-    // ============================================================
-    // 通信キャンセル
-    // ============================================================
-
-    /// <summary>
-    /// シーン終了やミッション強制終了などで
-    /// 通信を途中キャンセルする。
-    ///
-    /// キャンセル時は即座に格納位置へ戻す。
-    /// TransmissionCompletedは発生させない。
-    /// </summary>
-    public void CancelTransmission()
-    {
-        if (transmissionCoroutine != null)
-        {
-            StopCoroutine(
-                transmissionCoroutine
-            );
-
-            transmissionCoroutine =
+            yield return
                 null;
         }
 
 
-        SetMastLocalY(
-            loweredLocalY
-        );
-
-
-        SetState(
-            MastState.Lowered
-        );
-
-
-        if (debugLog)
-        {
-            Debug.Log(
-                "通信をキャンセルし、通信マストを格納しました。"
-            );
-        }
+        mastTransform.localPosition =
+            endPosition;
     }
 
 
     // ============================================================
-    // 状態変更
+    // State変更
     // ============================================================
 
     private void SetState(
         MastState newState
     )
     {
-        if (currentState == newState)
+        if (
+            currentState ==
+            newState
+        )
         {
             return;
         }
@@ -587,7 +452,7 @@ public class CommunicationMastController : MonoBehaviour
 
 
     // ============================================================
-    // 状態取得
+    // Getter
     // ============================================================
 
     public MastState GetCurrentState()
@@ -597,12 +462,18 @@ public class CommunicationMastController : MonoBehaviour
     }
 
 
-    /// <summary>
-    /// 通信マストが少しでも外へ出ている状態か。
-    ///
-    /// 第4段階の発見危険度に利用できる。
-    /// </summary>
     public bool GetIsMastExposed()
+    {
+        // Lowered以外は、
+        // 上昇途中・送信中・下降途中を含め
+        // 敵に見つかる可能性がある
+        return
+            currentState !=
+            MastState.Lowered;
+    }
+
+
+    public bool GetIsBusy()
     {
         return
             currentState !=
@@ -610,14 +481,11 @@ public class CommunicationMastController : MonoBehaviour
     }
 
 
-    /// <summary>
-    /// 現在実際に送信中か。
-    /// </summary>
-    public bool GetIsTransmitting()
+    public bool GetIsFullyLowered()
     {
         return
             currentState ==
-            MastState.Transmitting;
+            MastState.Lowered;
     }
 
 
@@ -629,34 +497,35 @@ public class CommunicationMastController : MonoBehaviour
 
 
     // ============================================================
-    // Inspector検証
+    // Inspector
     // ============================================================
 
     private void OnValidate()
     {
-        ValidateSettings();
-    }
+        raiseHeight =
+            Mathf.Max(
+                MinimumNonNegativeValue,
+                raiseHeight
+            );
 
 
-    private void ValidateSettings()
-    {
         raiseDuration =
             Mathf.Max(
-                MinimumDuration,
+                MinimumNonNegativeValue,
                 raiseDuration
             );
 
 
         transmissionDuration =
             Mathf.Max(
-                MinimumDuration,
+                MinimumNonNegativeValue,
                 transmissionDuration
             );
 
 
         lowerDuration =
             Mathf.Max(
-                MinimumDuration,
+                MinimumNonNegativeValue,
                 lowerDuration
             );
     }
