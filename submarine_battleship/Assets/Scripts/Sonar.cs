@@ -4,6 +4,18 @@ using UnityEngine;
 public class Sonar : MonoBehaviour
 {
     // ============================================================
+    // ソナー表示の回転基準
+    // ============================================================
+
+    public enum SonarRotationReference
+    {
+        World = 0,
+        Submarine = 1,
+        Periscope = 2
+    }
+
+
+    // ============================================================
     // 定数
     // ============================================================
 
@@ -66,10 +78,19 @@ public class Sonar : MonoBehaviour
         DefaultEdgePadding;
 
 
+    // ============================================================
+    // Rotation
+    // ============================================================
+
+    [Header("Rotation")]
+
     [SerializeField, Tooltip(
-        "潜水艦の向きを基準として表示を回転する")]
-    private bool rotateWithSubmarine =
-        true;
+        "ソナー表示の向きの基準。" +
+        "World = ワールド固定、" +
+        "Submarine = 潜水艦の向き基準、" +
+        "Periscope = 潜望鏡の向き基準")]
+    private SonarRotationReference rotationReference =
+        SonarRotationReference.Periscope;
 
 
     [SerializeField, Tooltip(
@@ -301,21 +322,19 @@ public class Sonar : MonoBehaviour
             displayRadius;
 
 
-        if (rotateWithSubmarine)
-        {
-            float rotation =
-                DataManager
-                    .GetSubmarineRotation()
-                +
-                rotationOffsetDegrees;
+        // ========================================================
+        // 選択された基準方向でソナー表示を回転
+        // ========================================================
+
+        float rotation =
+            GetSonarRotationDegrees();
 
 
-            displayPosition =
-                RotateVector2(
-                    displayPosition,
-                    rotation
-                );
-        }
+        displayPosition =
+            RotateVector2(
+                displayPosition,
+                rotation
+            );
 
 
         GenerateSonarPoint(
@@ -410,27 +429,89 @@ public class Sonar : MonoBehaviour
                 displayRadius;
 
 
-            if (rotateWithSubmarine)
-            {
-                float rotation =
-                    DataManager
-                        .GetSubmarineRotation()
-                    +
-                    rotationOffsetDegrees;
+            // ====================================================
+            // 選択された基準方向でソナー表示を回転
+            // ====================================================
+
+            float rotation =
+                GetSonarRotationDegrees();
 
 
-                displayPosition =
-                    RotateVector2(
-                        displayPosition,
-                        rotation
-                    );
-            }
+            displayPosition =
+                RotateVector2(
+                    displayPosition,
+                    rotation
+                );
 
 
             GenerateSonarPoint(
                 displayPosition
             );
         }
+    }
+
+
+    // ============================================================
+    // ソナー回転角取得
+    // ============================================================
+
+    private float GetSonarRotationDegrees()
+    {
+        float referenceRotation;
+
+
+        switch (rotationReference)
+        {
+            // ====================================================
+            // ワールド固定
+            // ====================================================
+
+            case SonarRotationReference.World:
+
+                referenceRotation =
+                    0.0f;
+
+                break;
+
+
+            // ====================================================
+            // 潜水艦の向きを基準
+            // ====================================================
+
+            case SonarRotationReference.Submarine:
+
+                referenceRotation =
+                    DataManager
+                        .GetSubmarineRotation();
+
+                break;
+
+
+            // ====================================================
+            // 潜望鏡の向きを基準
+            // ====================================================
+
+            case SonarRotationReference.Periscope:
+
+                referenceRotation =
+                    DataManager
+                        .GetPeriscopeRotation();
+
+                break;
+
+
+            default:
+
+                referenceRotation =
+                    0.0f;
+
+                break;
+        }
+
+
+        return
+            referenceRotation +
+            rotationOffsetDegrees;
     }
 
 

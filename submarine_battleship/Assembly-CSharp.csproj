@@ -69,6 +69,7 @@
     <Compile Include="Assets/Scripts/Color_Scene/ColorMemoryEnemyShip.cs" />
     <Compile Include="Assets/Scripts/start_scene/DelayedVideoLoop.cs" />
     <Compile Include="Assets/Scripts/SensorRead.cs" />
+    <Compile Include="Assets/Scripts/GameChooceScene/GameModeChooseSceneManager.cs" />
     <Compile Include="Assets/Scripts/CommunicationMissionManager.cs" />
     <Compile Include="Assets/Scripts/ExposureRiskManager.cs" />
     <Compile Include="Assets/Scripts/SignalInputUIController.cs" />
