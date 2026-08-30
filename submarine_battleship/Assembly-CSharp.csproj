@@ -50,6 +50,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets/Scripts/AmbientContactSpawner.cs" />
+    <Compile Include="Assets/Scripts/Color_Scene/ColorSequenceInputUIController.cs" />
+    <Compile Include="Assets/Scripts/Color_Scene/ColorMemoryGameManager.cs" />
     <Compile Include="Assets/Scripts/EnemyVisualHighlight.cs" />
     <Compile Include="Assets/Scripts/tutorial_scene/TutorialSceneGameManager.cs" />
     <Compile Include="Assets/Scripts/tuto_2/TutorialFlowControllerV2.cs" />
@@ -60,8 +62,11 @@
     <Compile Include="Assets/Scripts/PeriscopeController.cs" />
     <Compile Include="Assets/Scripts/tutorial_scene/TutorialEnemyShip.cs" />
     <Compile Include="Assets/Scripts/Sonar.cs" />
+    <Compile Include="Assets/Scripts/Color_Scene/ColorSequenceInputController.cs" />
     <Compile Include="Assets/Scripts/tuto_2/TutorialEnemyControllerV2.cs" />
+    <Compile Include="Assets/Scripts/Color_Scene/ColorMemoryResultUIController.cs" />
     <Compile Include="Assets/Scripts/UnderwaterVolumeSwitcher.cs" />
+    <Compile Include="Assets/Scripts/Color_Scene/ColorMemoryEnemyShip.cs" />
     <Compile Include="Assets/Scripts/start_scene/DelayedVideoLoop.cs" />
     <Compile Include="Assets/Scripts/SensorRead.cs" />
     <Compile Include="Assets/Scripts/CommunicationMissionManager.cs" />
@@ -70,6 +75,7 @@
     <Compile Include="Assets/Scripts/MainCamera.cs" />
     <Compile Include="Assets/Scripts/CommunicationMastController.cs" />
     <Compile Include="Assets/Scripts/ProconReceiver.cs" />
+    <Compile Include="Assets/Scripts/Color_Scene/ColorSignalSymbol.cs" />
     <Compile Include="Assets/Scripts/TutorialSceneManager.cs" />
     <Compile Include="Assets/Scripts/ship/Ship.cs" />
     <Compile Include="Assets/TutorialInfo/Scripts/Readme.cs" />
@@ -78,6 +84,7 @@
     <Compile Include="Assets/Scripts/SurfaceContact.cs" />
     <Compile Include="Assets/Scripts/GameSettingPanel.cs" />
     <Compile Include="Assets/Scripts/ship/PassiveSurfaceShip.cs" />
+    <Compile Include="Assets/Scripts/Color_Scene/ColorMemoryMissionManager.cs" />
     <Compile Include="Assets/Scripts/UnderwaterEnvironmentSwitcher.cs" />
     <Compile Include="Assets/Scripts/result_scene/ResultSceneManager.cs" />
     <Compile Include="Assets/Scripts/SignalInputController.cs" />

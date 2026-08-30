@@ -17,3 +17,6 @@ Recordings/
 
 # OS
 .DS_Store
+
+# Unity recovery files
+_Recovery/
