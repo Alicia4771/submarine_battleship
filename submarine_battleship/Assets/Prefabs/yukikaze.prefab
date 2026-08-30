@@ -101,12 +101,12 @@ MonoBehaviour:
   requireContinuousObservationUntilSignal: 1
   minimumSignalLength: 4
   maximumSignalLength: 4
-  signalRepeatCount: 2
+  signalRepeatCount: 100
   startMarkerColor: {r: 0, g: 0.7100948, b: 0.8235294, a: 1}
   startMarkerDuration: 0.4
   startMarkerBlankDuration: 0.3
-  shortSignalDuration: 0.15
-  longSignalDuration: 0.65
+  shortSignalDuration: 0.3
+  longSignalDuration: 1.2
   symbolBlankDuration: 0.15
   signalRepeatInterval: 1.5
   shortSignalColor: {r: 1, g: 0, b: 0, a: 1}

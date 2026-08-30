@@ -66,6 +66,7 @@
     <Compile Include="Assets/Scripts/SensorRead.cs" />
     <Compile Include="Assets/Scripts/CommunicationMissionManager.cs" />
     <Compile Include="Assets/Scripts/ExposureRiskManager.cs" />
+    <Compile Include="Assets/Scripts/SignalInputUIController.cs" />
     <Compile Include="Assets/Scripts/MainCamera.cs" />
     <Compile Include="Assets/Scripts/CommunicationMastController.cs" />
     <Compile Include="Assets/Scripts/ProconReceiver.cs" />

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -13,6 +14,31 @@ public class SignalInputController : MonoBehaviour
 
     private const float MinimumLongPressThreshold =
         0.01f;
+
+
+    // ============================================================
+    // Event
+    // ============================================================
+
+    /// <summary>
+    /// 信号入力モードの開始・終了時に通知する。
+    /// true = 入力受付中
+    /// false = 入力受付終了
+    /// </summary>
+    public event Action<bool>
+        InputModeChanged;
+
+
+    /// <summary>
+    /// 確定済みの入力信号が変化したときに通知する。
+    /// 第1引数 = 現在までに入力された信号
+    /// 第2引数 = 今回必要な信号数
+    /// </summary>
+    public event Action<
+        IReadOnlyList<SignalSymbol>,
+        int
+    >
+        EnteredSignalsChanged;
 
 
     // ============================================================
@@ -409,6 +435,14 @@ public class SignalInputController : MonoBehaviour
             true;
 
 
+        InputModeChanged?.Invoke(
+            true
+        );
+
+
+        NotifyEnteredSignalsChanged();
+
+
         measuringPress =
             false;
 
@@ -443,6 +477,10 @@ public class SignalInputController : MonoBehaviour
 
     private void EndInputMode()
     {
+        bool wasInputEnabled =
+            inputEnabled;
+
+
         inputEnabled =
             false;
 
@@ -451,6 +489,14 @@ public class SignalInputController : MonoBehaviour
 
 
         SyncButtonState();
+
+
+        if (wasInputEnabled)
+        {
+            InputModeChanged?.Invoke(
+                false
+            );
+        }
     }
 
 
@@ -560,6 +606,9 @@ public class SignalInputController : MonoBehaviour
         );
 
 
+        NotifyEnteredSignalsChanged();
+
+
         if (debugLog)
         {
             Debug.Log(
@@ -635,7 +684,18 @@ public class SignalInputController : MonoBehaviour
                 CommunicationMissionManager
                     .MissionState
                     .Inputting;
+
+            return;
         }
+
+
+        // SubmitPlayerSignalが成功すると
+        // MissionStateはTransmittingへ移行する。
+        // CompleteInput冒頭でinputEnabledをfalseにしているため、
+        // UIへはここで明示的に入力終了を通知する。
+        InputModeChanged?.Invoke(
+            false
+        );
     }
 
 
@@ -685,6 +745,10 @@ public class SignalInputController : MonoBehaviour
 
     private void ResetButtonState()
     {
+        bool wasInputEnabled =
+            inputEnabled;
+
+
         inputEnabled =
             false;
 
@@ -703,6 +767,27 @@ public class SignalInputController : MonoBehaviour
 
         pressStartTime =
             0.0f;
+
+
+        if (wasInputEnabled)
+        {
+            InputModeChanged?.Invoke(
+                false
+            );
+        }
+    }
+
+
+    // ============================================================
+    // UIなどへ現在の入力内容を通知
+    // ============================================================
+
+    private void NotifyEnteredSignalsChanged()
+    {
+        EnteredSignalsChanged?.Invoke(
+            enteredSignals,
+            GetExpectedSignalCount()
+        );
     }
 
 
@@ -784,6 +869,13 @@ public class SignalInputController : MonoBehaviour
     {
         return
             enteredSignals;
+    }
+
+
+    public int GetExpectedSignalCountForDisplay()
+    {
+        return
+            GetExpectedSignalCount();
     }
 
 
