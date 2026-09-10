@@ -54,6 +54,7 @@
     <Compile Include="Assets/Scripts/Color_Scene/ColorMemoryGameManager.cs" />
     <Compile Include="Assets/Scripts/EnemyVisualHighlight.cs" />
     <Compile Include="Assets/Scripts/tutorial_scene/TutorialSceneGameManager.cs" />
+    <Compile Include="Assets/Scripts/ScoreManager.cs" />
     <Compile Include="Assets/Scripts/tuto_2/TutorialFlowControllerV2.cs" />
     <Compile Include="Assets/Scripts/menu_panel/MenuPanelManager.cs" />
     <Compile Include="Assets/Scripts/menu_panel/AdministratorMenuManager.cs" />

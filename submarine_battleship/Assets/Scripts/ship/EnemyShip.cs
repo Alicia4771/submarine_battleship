@@ -24,6 +24,19 @@ public class EnemyShip : Ship
         90.0f;
 
 
+    private const float DefaultMinimumHorizontalDistanceFromSubmarine =
+        15.0f;
+
+    private const float DefaultAvoidanceClearance =
+        1.0f;
+
+    private const float DefaultAvoidanceStartDistance =
+        25.0f;
+
+    private const float DefaultOrbitCenterShiftSpeed =
+        5.0f;
+
+
     private const float DefaultPeriscopeFOV =
         45.0f;
 
@@ -174,6 +187,50 @@ public class EnemyShip : Ship
         "船モデルの進行方向に対するY回転補正")]
     private float modelRotationOffset =
         DefaultModelRotationOffset;
+
+
+    // ============================================================
+    // 潜水艦との接近回避
+    // ============================================================
+
+    [Header("Submarine Avoidance")]
+
+    [SerializeField, Tooltip(
+        "ONの場合、敵艦が潜水艦へ近づきすぎないようにする")]
+    private bool enableSubmarineAvoidance =
+        true;
+
+
+    [SerializeField, Tooltip(
+        "敵艦と潜水艦のXZ平面上で確保する最低距離")]
+    [Min(MinimumNonNegativeValue)]
+    private float minimumHorizontalDistanceFromSubmarine =
+        DefaultMinimumHorizontalDistanceFromSubmarine;
+
+
+    [SerializeField, Tooltip(
+        "現在の周回軌道と潜水艦のXZ平面上の最短距離が" +
+        "この値未満になると、新しい安全な周回中心へ滑らかに移行を開始する。" +
+        "Minimum Horizontal Distance From Submarine以上を推奨")]
+    [Min(MinimumNonNegativeValue)]
+    private float avoidanceStartDistance =
+        DefaultAvoidanceStartDistance;
+
+
+    [SerializeField, Tooltip(
+        "新しい安全な周回中心へ移動させる速度。" +
+        "小さいほどゆっくり進路が曲がり、大きいほど早く安全側へ軌道を移す")]
+    [Min(MinimumNonNegativeValue)]
+    private float orbitCenterShiftSpeed =
+        DefaultOrbitCenterShiftSpeed;
+
+
+    [SerializeField, Tooltip(
+        "回避目標に追加する余裕距離。" +
+        "安全軌道との境界付近で何度も補正されるのを抑える")]
+    [Min(MinimumNonNegativeValue)]
+    private float avoidanceClearance =
+        DefaultAvoidanceClearance;
 
 
     // ============================================================
@@ -753,27 +810,62 @@ public class EnemyShip : Ship
         }
 
 
-        currentMovementAngle +=
+        // ========================================================
+        // 潜水艦へ近づく可能性がある軌道なら、
+        // 回転方向を反転させるのではなく、
+        // 周回中心そのものを安全側へゆっくり移動させる。
+        //
+        // currentMovementAngleはそのまま進め続けるため、
+        // 急な切り返しは発生しない。
+        // ========================================================
+
+        if (enableSubmarineAvoidance)
+        {
+            UpdateOrbitCenterForSubmarineAvoidance();
+        }
+
+
+        float angularStep =
             movementSpeed *
             Time.fixedDeltaTime;
 
 
-        currentMovementAngle =
+        float nextAngle =
             Mathf.Repeat(
-                currentMovementAngle,
+                currentMovementAngle +
+                angularStep,
+
                 FullCircleRadians
-            );
-
-
-        Vector3 radialOffset =
-            CalculateMovementRadialOffset(
-                currentMovementAngle
             );
 
 
         Vector3 nextPosition =
             centerPoint +
-            radialOffset;
+            CalculateMovementRadialOffset(
+                nextAngle
+            );
+
+
+        // ========================================================
+        // 通常は事前の中心移動で回避する。
+        //
+        // ただし潜水艦自身の移動などで、
+        // 既に最低距離内へ入るケースに備えて
+        // 最後の安全処理だけ行う。
+        //
+        // この処理でも回転方向は反転しない。
+        // ========================================================
+
+        if (enableSubmarineAvoidance)
+        {
+            ApplyEmergencyMinimumDistance(
+                ref nextPosition
+            );
+        }
+
+
+        currentMovementAngle =
+            nextAngle;
 
 
         Vector3 moveDirection =
@@ -814,6 +906,325 @@ public class EnemyShip : Ship
         shipRigidbody.MovePosition(
             nextPosition
         );
+    }
+
+
+    // ============================================================
+    // 周回中心を滑らかに移動して回避
+    // ============================================================
+
+    private void UpdateOrbitCenterForSubmarineAvoidance()
+    {
+        if (
+            minimumHorizontalDistanceFromSubmarine <=
+                MinimumNonNegativeValue
+            ||
+            orbitCenterShiftSpeed <=
+                MinimumNonNegativeValue
+        )
+        {
+            return;
+        }
+
+
+        Vector3 submarinePosition =
+            DataManager
+                .GetSubmarinePosition();
+
+
+        float centerDistance =
+            CalculateHorizontalDistance(
+                centerPoint,
+                submarinePosition
+            );
+
+
+        // 点から円周までの最短距離は
+        // |中心までの距離 - 円の半径|
+        float closestDistanceToCurrentOrbit =
+            Mathf.Abs(
+                centerDistance -
+                movementRadius
+            );
+
+
+        float startDistance =
+            Mathf.Max(
+                minimumHorizontalDistanceFromSubmarine,
+                avoidanceStartDistance
+            );
+
+
+        // 現在の周回軌道が十分安全なら、
+        // 周回中心は変更しない
+        if (
+            closestDistanceToCurrentOrbit >=
+            startDistance
+        )
+        {
+            return;
+        }
+
+
+        Vector3 directionFromSubmarineToCenter =
+            centerPoint -
+            submarinePosition;
+
+
+        directionFromSubmarineToCenter.y =
+            MinimumNonNegativeValue;
+
+
+        if (
+            directionFromSubmarineToCenter.sqrMagnitude <=
+            Mathf.Epsilon
+        )
+        {
+            directionFromSubmarineToCenter =
+                shipRigidbody.position -
+                submarinePosition;
+
+
+            directionFromSubmarineToCenter.y =
+                MinimumNonNegativeValue;
+        }
+
+
+        if (
+            directionFromSubmarineToCenter.sqrMagnitude <=
+            Mathf.Epsilon
+        )
+        {
+            directionFromSubmarineToCenter =
+                Vector3.right;
+        }
+
+
+        directionFromSubmarineToCenter.Normalize();
+
+
+        float targetOrbitClearance =
+            startDistance +
+            avoidanceClearance;
+
+
+        float targetCenterDistance;
+
+
+        bool canKeepSubmarineInsideOrbit =
+            movementRadius >
+            targetOrbitClearance;
+
+
+        if (
+            centerDistance <
+                movementRadius
+            &&
+            canKeepSubmarineInsideOrbit
+        )
+        {
+            // 潜水艦が円の内側にいる場合は、
+            // 中心を潜水艦側へ寄せる。
+            // これにより円周自体は潜水艦から遠ざかる。
+            targetCenterDistance =
+                movementRadius -
+                targetOrbitClearance;
+        }
+        else
+        {
+            // 潜水艦が円の外側にいる場合は、
+            // 中心を潜水艦から遠ざける。
+            targetCenterDistance =
+                movementRadius +
+                targetOrbitClearance;
+        }
+
+
+        Vector3 targetCenterPoint =
+            submarinePosition +
+            directionFromSubmarineToCenter *
+            targetCenterDistance;
+
+
+        // Yは現在の周回中心を維持する
+        targetCenterPoint.y =
+            centerPoint.y;
+
+
+        // ========================================================
+        // 新しい中心へ一瞬で切り替えず、
+        // 毎FixedUpdate少しずつ移動する。
+        //
+        // 円運動の方向は一切反転しないため、
+        // 船は徐々に安全側へカーブしていく。
+        // ========================================================
+
+        centerPoint =
+            Vector3.MoveTowards(
+                centerPoint,
+                targetCenterPoint,
+                orbitCenterShiftSpeed *
+                Time.fixedDeltaTime
+            );
+    }
+
+
+    // ============================================================
+    // 最低距離の最終安全処理
+    // ============================================================
+
+    private void ApplyEmergencyMinimumDistance(
+        ref Vector3 nextPosition
+    )
+    {
+        if (
+            minimumHorizontalDistanceFromSubmarine <=
+            MinimumNonNegativeValue
+        )
+        {
+            return;
+        }
+
+
+        Vector3 submarinePosition =
+            DataManager
+                .GetSubmarinePosition();
+
+
+        float nextDistance =
+            CalculateHorizontalDistance(
+                nextPosition,
+                submarinePosition
+            );
+
+
+        if (
+            nextDistance >=
+            minimumHorizontalDistanceFromSubmarine
+        )
+        {
+            return;
+        }
+
+
+        Vector3 awayFromSubmarine =
+            nextPosition -
+            submarinePosition;
+
+
+        awayFromSubmarine.y =
+            MinimumNonNegativeValue;
+
+
+        if (
+            awayFromSubmarine.sqrMagnitude <=
+            Mathf.Epsilon
+        )
+        {
+            awayFromSubmarine =
+                shipRigidbody.position -
+                submarinePosition;
+
+
+            awayFromSubmarine.y =
+                MinimumNonNegativeValue;
+        }
+
+
+        if (
+            awayFromSubmarine.sqrMagnitude <=
+            Mathf.Epsilon
+        )
+        {
+            awayFromSubmarine =
+                centerPoint -
+                submarinePosition;
+
+
+            awayFromSubmarine.y =
+                MinimumNonNegativeValue;
+        }
+
+
+        if (
+            awayFromSubmarine.sqrMagnitude <=
+            Mathf.Epsilon
+        )
+        {
+            awayFromSubmarine =
+                Vector3.right;
+        }
+
+
+        awayFromSubmarine.Normalize();
+
+
+        float targetDistance =
+            minimumHorizontalDistanceFromSubmarine +
+            avoidanceClearance;
+
+
+        Vector3 safePosition =
+            submarinePosition +
+            awayFromSubmarine *
+            targetDistance;
+
+
+        // 海面上のY位置は変更しない
+        safePosition.y =
+            nextPosition.y;
+
+
+        Vector3 correction =
+            safePosition -
+            nextPosition;
+
+
+        nextPosition +=
+            correction;
+
+
+        // 敵艦だけを押し出すと次フレームに元の円へ
+        // 戻ろうとするため、周回中心も同じ量だけ移動する
+        centerPoint +=
+            correction;
+
+
+        if (debugLog)
+        {
+            Debug.Log(
+                gameObject.name +
+                " が最低安全距離内へ入ったため、" +
+                "周回中心を保ったまま最終安全補正を行いました。"
+            );
+        }
+    }
+
+
+    // ============================================================
+    // XZ平面上の距離
+    // ============================================================
+
+    private float CalculateHorizontalDistance(
+        Vector3 firstPosition,
+        Vector3 secondPosition
+    )
+    {
+        float deltaX =
+            firstPosition.x -
+            secondPosition.x;
+
+
+        float deltaZ =
+            firstPosition.z -
+            secondPosition.z;
+
+
+        return
+            Mathf.Sqrt(
+                deltaX * deltaX +
+                deltaZ * deltaZ
+            );
     }
 
 
@@ -1759,6 +2170,34 @@ public class EnemyShip : Ship
             Mathf.Max(
                 MinimumNonNegativeValue,
                 signalRange
+            );
+
+
+        minimumHorizontalDistanceFromSubmarine =
+            Mathf.Max(
+                MinimumNonNegativeValue,
+                minimumHorizontalDistanceFromSubmarine
+            );
+
+
+        avoidanceStartDistance =
+            Mathf.Max(
+                minimumHorizontalDistanceFromSubmarine,
+                avoidanceStartDistance
+            );
+
+
+        orbitCenterShiftSpeed =
+            Mathf.Max(
+                MinimumNonNegativeValue,
+                orbitCenterShiftSpeed
+            );
+
+
+        avoidanceClearance =
+            Mathf.Max(
+                MinimumNonNegativeValue,
+                avoidanceClearance
             );
     }
 }
