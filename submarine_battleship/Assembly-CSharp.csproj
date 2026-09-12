@@ -75,6 +75,7 @@
     <Compile Include="Assets/Scripts/ExposureRiskManager.cs" />
     <Compile Include="Assets/Scripts/SignalInputUIController.cs" />
     <Compile Include="Assets/Scripts/MainCamera.cs" />
+    <Compile Include="Assets/Scripts/GameTimerUIController.cs" />
     <Compile Include="Assets/Scripts/CommunicationMastController.cs" />
     <Compile Include="Assets/Scripts/ProconReceiver.cs" />
     <Compile Include="Assets/Scripts/Color_Scene/ColorSignalSymbol.cs" />

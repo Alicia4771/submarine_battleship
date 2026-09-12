@@ -207,6 +207,22 @@ public class GameManager : MonoBehaviour
         false;
 
 
+    // 制限時間に到達したか
+    private bool timeLimitReached =
+        false;
+
+
+    // 制限時間到達時に通信送信中 / 判定中だったため、
+    // MissionEvaluatedを待っているか
+    private bool waitingForMissionEvaluationAfterTimeLimit =
+        false;
+
+
+    // ResultSceneへの重複遷移防止
+    private bool resultSceneLoading =
+        false;
+
+
     private Coroutine initialSpawnCoroutine;
 
     private Coroutine roundResetCoroutine;
@@ -236,6 +252,16 @@ public class GameManager : MonoBehaviour
 
         time_count =
             MinimumNonNegativeValue;
+
+
+        timeLimitReached =
+            false;
+
+        waitingForMissionEvaluationAfterTimeLimit =
+            false;
+
+        resultSceneLoading =
+            false;
 
 
         SubscribeMissionEvents();
@@ -409,6 +435,46 @@ public class GameManager : MonoBehaviour
         bool wasSuccessful
     )
     {
+        // ========================================================
+        // 制限時間後の最後の通信結果
+        // ========================================================
+        //
+        // 制限時間到達時にTransmitting / Evaluatingだった場合は、
+        // このイベントが呼ばれるまでResultSceneへ遷移しない。
+        //
+        // MissionEvaluatedは成功・失敗のスコア反映後に発生するため、
+        // 最終通信の得点を確定してからゲームを終了できる。
+        // ========================================================
+
+        if (
+            timeLimitReached &&
+            waitingForMissionEvaluationAfterTimeLimit
+        )
+        {
+            waitingForMissionEvaluationAfterTimeLimit =
+                false;
+
+
+            if (debugLog)
+            {
+                Debug.Log(
+                    "制限時間後の最終通信判定が完了しました: " +
+                    (
+                        wasSuccessful
+                            ? "成功"
+                            : "失敗"
+                    ) +
+                    " / ResultSceneへ遷移します。"
+                );
+            }
+
+
+            LoadResultScene();
+
+            return;
+        }
+
+
         if (!resetAllContactsAfterMission)
         {
             return;
@@ -952,6 +1018,18 @@ public class GameManager : MonoBehaviour
         }
 
 
+        // すでに制限時間へ到達している場合は、
+        // 最終通信の判定待ち、またはScene遷移待ちなので
+        // ゲーム時間をそれ以上進めない。
+        if (
+            timeLimitReached ||
+            resultSceneLoading
+        )
+        {
+            return;
+        }
+
+
         time_count +=
             Time.deltaTime;
 
@@ -965,9 +1043,181 @@ public class GameManager : MonoBehaviour
         }
 
 
+        // 表示上も確実に00:00で止める
+        time_count =
+            time_limit;
+
+
+        timeLimitReached =
+            true;
+
+
+        // 制限時間以降は「時間による加点」を止める。
+        // 通信成功・失敗のイベント得点はこの影響を受けない。
+        StopTimeScore();
+
+
+        // 制限時間到達時に、
+        // 通信マスト送信中または正誤判定中なら
+        // 最後の通信結果が確定するまで待つ。
+        if (
+            ShouldWaitForMissionEvaluation()
+        )
+        {
+            waitingForMissionEvaluationAfterTimeLimit =
+                true;
+
+
+            if (debugLog)
+            {
+                Debug.Log(
+                    "制限時間に到達しましたが、" +
+                    "通信送信中または判定中のため、" +
+                    "最終通信の成功・失敗判定を待ちます。"
+                );
+            }
+
+
+            return;
+        }
+
+
+        LoadResultScene();
+    }
+
+
+    // ============================================================
+    // 制限時間到達時に通信判定を待つべきか
+    // ============================================================
+
+    private bool ShouldWaitForMissionEvaluation()
+    {
+        if (
+            communicationMissionManager ==
+            null
+        )
+        {
+            return false;
+        }
+
+
+        CommunicationMissionManager.MissionState
+            state =
+                communicationMissionManager
+                    .GetCurrentState();
+
+
+        return
+            state ==
+                CommunicationMissionManager
+                    .MissionState
+                    .Transmitting
+            ||
+            state ==
+                CommunicationMissionManager
+                    .MissionState
+                    .Evaluating;
+    }
+
+
+    // ============================================================
+    // 時間スコア停止
+    // ============================================================
+
+    private void StopTimeScore()
+    {
+        ScoreManager scoreManager =
+            FindFirstObjectByType<
+                ScoreManager
+            >();
+
+
+        if (scoreManager == null)
+        {
+            return;
+        }
+
+
+        scoreManager
+            .SetTimeScoreEnabled(
+                false
+            );
+    }
+
+
+    // ============================================================
+    // ResultScene
+    // ============================================================
+
+    private void LoadResultScene()
+    {
+        if (resultSceneLoading)
+        {
+            return;
+        }
+
+
+        resultSceneLoading =
+            true;
+
+
         SceneManager.LoadScene(
             ResultSceneName
         );
+    }
+
+
+
+    // ============================================================
+    // Game Time Public API
+    // ============================================================
+
+    public float GetTimeLimit()
+    {
+        return time_limit;
+    }
+
+
+    public float GetElapsedTime()
+    {
+        return time_count;
+    }
+
+
+    public float GetRemainingTime()
+    {
+        if (time_limit == UnlimitedTimeValue)
+        {
+            return 0.0f;
+        }
+
+
+        return Mathf.Max(
+            MinimumNonNegativeValue,
+            time_limit - time_count
+        );
+    }
+
+
+    public bool GetIsUnlimitedTime()
+    {
+        return
+            time_limit ==
+            UnlimitedTimeValue;
+    }
+
+
+    public bool GetHasTimeLimitReached()
+    {
+        return
+            timeLimitReached;
+    }
+
+
+    public bool GetIsWaitingForFinalMissionEvaluation()
+    {
+        return
+            waitingForMissionEvaluationAfterTimeLimit;
     }
 
 
