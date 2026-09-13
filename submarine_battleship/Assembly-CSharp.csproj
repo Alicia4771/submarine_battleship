@@ -74,6 +74,7 @@
     <Compile Include="Assets/Scripts/CommunicationMissionManager.cs" />
     <Compile Include="Assets/Scripts/ExposureRiskManager.cs" />
     <Compile Include="Assets/Scripts/SignalInputUIController.cs" />
+    <Compile Include="Assets/Scripts/SignalInputHoldSound.cs" />
     <Compile Include="Assets/Scripts/MainCamera.cs" />
     <Compile Include="Assets/Scripts/GameTimerUIController.cs" />
     <Compile Include="Assets/Scripts/CommunicationMastController.cs" />

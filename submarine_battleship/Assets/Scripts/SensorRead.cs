@@ -21,7 +21,8 @@ public class SensorRead : MonoBehaviour
     [Header("Serial Settings")]
 
     // private string portName = "/dev/cu.usbserial-140";      // eluq's Mac
-    private string portName = "/dev/cu.usbserial-110";         // rin's Mac
+    // private string portName = "/dev/cu.usbserial-110";         // rin's Mac
+    private string portName = "/dev/cu.usbserial-1120";         // rin's Mac
     // private string portName = "/dev/cu.usbserial-1130";     // yuuya's Mac
 
     [SerializeField]
