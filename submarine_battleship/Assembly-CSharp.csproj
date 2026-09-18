@@ -50,6 +50,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets/Scripts/AmbientContactSpawner.cs" />
+    <Compile Include="Assets/Scripts/ColorTuto/ColorTutorialVideoController.cs" />
     <Compile Include="Assets/Scripts/Color_Scene/ColorSequenceInputUIController.cs" />
     <Compile Include="Assets/Scripts/Color_Scene/ColorMemoryGameManager.cs" />
     <Compile Include="Assets/Scripts/EnemyVisualHighlight.cs" />
@@ -59,6 +60,7 @@
     <Compile Include="Assets/Scripts/ScoreUIController.cs" />
     <Compile Include="Assets/Scripts/PeriscopeAmbientAudioController.cs" />
     <Compile Include="Assets/Scripts/menu_panel/MenuPanelManager.cs" />
+    <Compile Include="Assets/Scripts/ColorTuto/ColorTutorialSensorBridge.cs" />
     <Compile Include="Assets/Scripts/menu_panel/AdministratorMenuManager.cs" />
     <Compile Include="Assets/Scripts/ResultRankingUIController.cs" />
     <Compile Include="Assets/Scripts/DataManager.cs" />
@@ -100,6 +102,7 @@
     <Compile Include="Assets/Scripts/menu_panel/SceneSettingPanel.cs" />
     <Compile Include="Assets/Scripts/tuto_2/SimpleTutorialFlowController.cs" />
     <Compile Include="Assets/Scripts/start_scene/StartSceneManager.cs" />
+    <Compile Include="Assets/Scripts/ColorTuto/ColorTutorialFlowController.cs" />
     <Compile Include="Assets/Scripts/tuto_2/TutorialSensorBridgeV2.cs" />
     <Compile Include="Assets/Scripts/menu_panel/TimeScaleSettingPanel.cs" />
     <Compile Include="Assets/Scripts/GameManager.cs" />
