@@ -37,6 +37,7 @@ public class ColorSequenceInputController : MonoBehaviour
     private int previousButton2 = 0;
     private int previousButton3 = 0;
     private int previousButton4 = 0;
+    private int previousButton6 = 0;
 
     private void Awake()
     {
@@ -103,6 +104,9 @@ public class ColorSequenceInputController : MonoBehaviour
         int currentButton4 =
             DataManager.GetSensorButton4();
 
+        int currentButton6 =
+            DataManager.GetSensorButton6();
+
         if (waitingForInitialRelease)
         {
             bool allReleased =
@@ -115,6 +119,7 @@ public class ColorSequenceInputController : MonoBehaviour
             previousButton2 = currentButton2;
             previousButton3 = currentButton3;
             previousButton4 = currentButton4;
+            previousButton6 = currentButton6;
 
             if (allReleased)
             {
@@ -131,6 +136,23 @@ public class ColorSequenceInputController : MonoBehaviour
             return;
         }
 
+        bool button6Pressed =
+            currentButton6 == 1 &&
+            previousButton6 != 1;
+
+        if (button6Pressed)
+        {
+            ResetEnteredColors(
+                currentButton2,
+                currentButton3,
+                currentButton4
+            );
+
+            previousButton6 = currentButton6;
+
+            return;
+        }
+
         if (waitingForFinalRelease)
         {
             bool allReleased =
@@ -143,6 +165,7 @@ public class ColorSequenceInputController : MonoBehaviour
             previousButton2 = currentButton2;
             previousButton3 = currentButton3;
             previousButton4 = currentButton4;
+            previousButton6 = currentButton6;
 
             if (!allReleased)
             {
@@ -197,6 +220,7 @@ public class ColorSequenceInputController : MonoBehaviour
         previousButton2 = currentButton2;
         previousButton3 = currentButton3;
         previousButton4 = currentButton4;
+        previousButton6 = currentButton6;
     }
 
     private void ResolveReferences()
@@ -267,9 +291,13 @@ public class ColorSequenceInputController : MonoBehaviour
         int currentButton4 =
             DataManager.GetSensorButton4();
 
+        int currentButton6 =
+            DataManager.GetSensorButton6();
+
         previousButton2 = currentButton2;
         previousButton3 = currentButton3;
         previousButton4 = currentButton4;
+        previousButton6 = currentButton6;
 
         waitingForInitialRelease =
             requireReleaseBeforeFirstInput &&
@@ -402,6 +430,36 @@ public class ColorSequenceInputController : MonoBehaviour
         }
     }
 
+    private void ResetEnteredColors(
+        int currentButton2,
+        int currentButton3,
+        int currentButton4
+    )
+    {
+        enteredColors.Clear();
+
+        waitingForFinalRelease = false;
+
+        waitingForInitialRelease =
+            currentButton2 == 1 ||
+            currentButton3 == 1 ||
+            currentButton4 == 1;
+
+        previousButton2 = currentButton2;
+        previousButton3 = currentButton3;
+        previousButton4 = currentButton4;
+
+        NotifyEnteredColorsChanged();
+
+        if (debugLog)
+        {
+            Debug.Log(
+                "Button6: 現在入力している色信号をリセットしました。"
+            );
+        }
+    }
+
+
     private bool AreColorButtonsReleased(
         int button2,
         int button3,
@@ -424,6 +482,9 @@ public class ColorSequenceInputController : MonoBehaviour
 
         previousButton4 =
             DataManager.GetSensorButton4();
+
+        previousButton6 =
+            DataManager.GetSensorButton6();
     }
 
     private void NotifyEnteredColorsChanged()
@@ -496,5 +557,6 @@ public class ColorSequenceInputController : MonoBehaviour
         previousButton2 = 0;
         previousButton3 = 0;
         previousButton4 = 0;
+        previousButton6 = 0;
     }
 }

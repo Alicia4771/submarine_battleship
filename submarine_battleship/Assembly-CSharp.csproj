@@ -56,8 +56,11 @@
     <Compile Include="Assets/Scripts/tutorial_scene/TutorialSceneGameManager.cs" />
     <Compile Include="Assets/Scripts/ScoreManager.cs" />
     <Compile Include="Assets/Scripts/tuto_2/TutorialFlowControllerV2.cs" />
+    <Compile Include="Assets/Scripts/ScoreUIController.cs" />
+    <Compile Include="Assets/Scripts/PeriscopeAmbientAudioController.cs" />
     <Compile Include="Assets/Scripts/menu_panel/MenuPanelManager.cs" />
     <Compile Include="Assets/Scripts/menu_panel/AdministratorMenuManager.cs" />
+    <Compile Include="Assets/Scripts/ResultRankingUIController.cs" />
     <Compile Include="Assets/Scripts/DataManager.cs" />
     <Compile Include="Assets/Scripts/tutorial_scene/TutorialSceneMenuPanelManager.cs" />
     <Compile Include="Assets/Scripts/PeriscopeController.cs" />
@@ -79,6 +82,7 @@
     <Compile Include="Assets/Scripts/GameTimerUIController.cs" />
     <Compile Include="Assets/Scripts/CommunicationMastController.cs" />
     <Compile Include="Assets/Scripts/ProconReceiver.cs" />
+    <Compile Include="Assets/Scripts/ScoreHistoryManager.cs" />
     <Compile Include="Assets/Scripts/Color_Scene/ColorSignalSymbol.cs" />
     <Compile Include="Assets/Scripts/TutorialSceneManager.cs" />
     <Compile Include="Assets/Scripts/ship/Ship.cs" />

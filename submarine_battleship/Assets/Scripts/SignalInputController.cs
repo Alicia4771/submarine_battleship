@@ -103,6 +103,10 @@ public class SignalInputController : MonoBehaviour
         false;
 
 
+    private bool previousButton6Pressed =
+        false;
+
+
     private bool measuringPress =
         false;
 
@@ -236,6 +240,34 @@ public class SignalInputController : MonoBehaviour
             GetButton4Pressed();
 
 
+        bool button6Pressed =
+            GetButton6Pressed();
+
+
+        bool button6PressedThisFrame =
+            button6Pressed &&
+            !previousButton6Pressed;
+
+
+        // ========================================================
+        // Button6で現在入力をリセット
+        // ========================================================
+
+        if (button6PressedThisFrame)
+        {
+            ResetEnteredSignals(
+                buttonPressed
+            );
+
+
+            previousButton6Pressed =
+                button6Pressed;
+
+
+            return;
+        }
+
+
         // ========================================================
         // 入力開始時に既にボタンが押されていた場合
         // ========================================================
@@ -264,6 +296,10 @@ public class SignalInputController : MonoBehaviour
                 previousButtonPressed =
                     true;
             }
+
+
+            previousButton6Pressed =
+                button6Pressed;
 
 
             return;
@@ -298,6 +334,10 @@ public class SignalInputController : MonoBehaviour
 
         previousButtonPressed =
             buttonPressed;
+
+
+        previousButton6Pressed =
+            button6Pressed;
     }
 
 
@@ -458,6 +498,10 @@ public class SignalInputController : MonoBehaviour
         waitingForInitialRelease =
             requireReleaseBeforeFirstInput &&
             currentlyPressed;
+
+
+        previousButton6Pressed =
+            GetButton6Pressed();
 
 
         if (debugLog)
@@ -714,6 +758,20 @@ public class SignalInputController : MonoBehaviour
 
 
     // ============================================================
+    // Button6取得
+    // ============================================================
+
+    private bool GetButton6Pressed()
+    {
+        return
+            DataManager
+                .GetSensorButton6()
+            ==
+            1;
+    }
+
+
+    // ============================================================
     // Button状態同期
     // ============================================================
 
@@ -721,6 +779,47 @@ public class SignalInputController : MonoBehaviour
     {
         previousButtonPressed =
             GetButton4Pressed();
+
+
+        previousButton6Pressed =
+            GetButton6Pressed();
+    }
+
+
+    // ============================================================
+    // 現在入力している信号をリセット
+    // ============================================================
+
+    private void ResetEnteredSignals(
+        bool button4CurrentlyPressed
+    )
+    {
+        enteredSignals.Clear();
+
+
+        CancelCurrentPress();
+
+
+        // リセットした瞬間にButton4が押されていた場合、
+        // その押下を新しい1個目の信号として引き継がない。
+        // 一度Button4を離してから次の入力を受け付ける。
+        waitingForInitialRelease =
+            button4CurrentlyPressed;
+
+
+        previousButtonPressed =
+            button4CurrentlyPressed;
+
+
+        NotifyEnteredSignalsChanged();
+
+
+        if (debugLog)
+        {
+            Debug.Log(
+                "Button6: 現在入力している信号をリセットしました。"
+            );
+        }
     }
 
 
@@ -762,6 +861,10 @@ public class SignalInputController : MonoBehaviour
 
 
         previousButtonPressed =
+            false;
+
+
+        previousButton6Pressed =
             false;
 
 
