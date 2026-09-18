@@ -9,6 +9,9 @@ EditorBuildSettings:
     path: Assets/Scenes/StartScene.unity
     guid: 4e36df7bd25cb4d6f96454200a824616
   - enabled: 1
+    path: Assets/Scenes/ColorTutorialScene.unity
+    guid: cc9d4c1f01ef542bf9f8b285640eb062
+  - enabled: 1
     path: Assets/Scenes/GameChooceScene.unity
     guid: 5f24eaeb70a874aaa83730b5013b271a
   - enabled: 1

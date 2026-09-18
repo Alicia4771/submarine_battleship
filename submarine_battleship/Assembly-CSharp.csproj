@@ -66,10 +66,12 @@
     <Compile Include="Assets/Scripts/DataManager.cs" />
     <Compile Include="Assets/Scripts/tutorial_scene/TutorialSceneMenuPanelManager.cs" />
     <Compile Include="Assets/Scripts/PeriscopeController.cs" />
+    <Compile Include="Assets/Scripts/ColorTuto/ColorTutorialEnemySpawner.cs" />
     <Compile Include="Assets/Scripts/tutorial_scene/TutorialEnemyShip.cs" />
     <Compile Include="Assets/Scripts/Sonar.cs" />
     <Compile Include="Assets/Scripts/Color_Scene/ColorSequenceInputController.cs" />
     <Compile Include="Assets/Scripts/tuto_2/TutorialEnemyControllerV2.cs" />
+    <Compile Include="Assets/Scripts/ColorTuto/ColorTutorialSignalEmitter.cs" />
     <Compile Include="Assets/Scripts/Color_Scene/ColorMemoryResultUIController.cs" />
     <Compile Include="Assets/Scripts/UnderwaterVolumeSwitcher.cs" />
     <Compile Include="Assets/Scripts/Color_Scene/ColorMemoryEnemyShip.cs" />
