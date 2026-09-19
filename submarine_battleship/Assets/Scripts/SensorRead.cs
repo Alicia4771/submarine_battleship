@@ -1,7 +1,9 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using System.IO;
 using System.IO.Ports;
 using System.Threading;
+using System.Collections.Generic;
 
 public class SensorRead : MonoBehaviour
 {
@@ -20,13 +22,51 @@ public class SensorRead : MonoBehaviour
 
     [Header("Serial Settings")]
 
-    // private string portName = "/dev/cu.usbserial-140";      // eluq's Mac
-    // private string portName = "/dev/cu.usbserial-110";         // rin's Mac
-    private string portName = "/dev/cu.usbserial-1120";         // rin's Mac
-    // private string portName = "/dev/cu.usbserial-1130";     // yuuya's Mac
+    [SerializeField, Tooltip(
+        "ONの場合、macOS起動時に /dev/cu.usbserial-* を自動検索する")]
+    private bool autoDetectSerialPort =
+        true;
+
+
+    [SerializeField, Tooltip(
+        "自動検出を行うディレクトリ。macOSでは通常 /dev")]
+    private string serialPortSearchDirectory =
+        "/dev";
+
+
+    [SerializeField, Tooltip(
+        "自動検出するポート名の検索パターン")]
+    private string serialPortSearchPattern =
+        "cu.usbserial-*";
+
+
+    [SerializeField, Tooltip(
+        "自動検出できなかった場合に使用する予備ポート名")]
+    private string portName =
+        "/dev/cu.usbserial-1120";
+
+
+    [SerializeField, Tooltip(
+        "自動検出で見つからなかった場合、Port Nameを試す")]
+    private bool useConfiguredPortAsFallback =
+        true;
+
 
     [SerializeField]
-    private int baudRate = 115200;
+    private int baudRate =
+        115200;
+
+
+    [SerializeField, Tooltip(
+        "実行中に実際に接続されたポート名。確認用")]
+    private string selectedPortName =
+        string.Empty;
+
+
+    [SerializeField, Tooltip(
+        "自動検索で見つかった候補数。確認用")]
+    private int detectedPortCount =
+        0;
 
 
     // =========================
@@ -139,27 +179,30 @@ public class SensorRead : MonoBehaviour
 
     void Start()
     {
-        serial = new SerialPort(
-            portName,
-            baudRate
-        );
-
-        serial.ReadTimeout = 50;
+        selectedPortName =
+            string.Empty;
 
 
-        try
-        {
-            serial.Open();
-        }
-        catch (System.Exception e)
+        detectedPortCount =
+            0;
+
+
+        List<string> portCandidates =
+            BuildSerialPortCandidates();
+
+
+        if (
+            !TryOpenFirstAvailablePort(
+                portCandidates
+            )
+        )
         {
             Debug.LogWarning(
-                "SerialPort Open Failed: " +
-                e.Message +
-                "\n" +
+                "SerialPort Open Failed: 使用できるシリアルポートを開けませんでした。\n" +
                 "実機からの入力は使用できません。" +
                 "Keyboard SimulationがONの場合はキーボード入力を使用できます。"
             );
+
 
             // シリアル通信だけ停止する。
             // UpdateやGetterは引き続き動作するため、
@@ -168,16 +211,396 @@ public class SensorRead : MonoBehaviour
         }
 
 
-        // シリアル受信スレッド開始
-        running = true;
-
-        readThread = new Thread(
-            ReadSerialLoop
+        Debug.Log(
+            "SerialPort Connected: " +
+            selectedPortName +
+            " / BaudRate=" +
+            baudRate
         );
 
-        readThread.IsBackground = true;
+
+        // シリアル受信スレッド開始
+        running =
+            true;
+
+
+        readThread =
+            new Thread(
+                ReadSerialLoop
+            );
+
+
+        readThread.IsBackground =
+            true;
+
 
         readThread.Start();
+    }
+
+
+    // =========================
+    // ポート候補作成
+    // =========================
+
+    private List<string>
+        BuildSerialPortCandidates()
+    {
+        List<string> candidates =
+            new List<string>();
+
+
+        bool isMac =
+            Application.platform ==
+                RuntimePlatform.OSXEditor
+            ||
+            Application.platform ==
+                RuntimePlatform.OSXPlayer;
+
+
+        // macOSでは /dev/cu.usbserial-* を自動検索する。
+        if (
+            autoDetectSerialPort &&
+            isMac
+        )
+        {
+            string[] detectedPorts =
+                FindMacUsbSerialPorts();
+
+
+            detectedPortCount =
+                detectedPorts.Length;
+
+
+            for (
+                int index = 0;
+                index < detectedPorts.Length;
+                index++
+            )
+            {
+                AddPortCandidate(
+                    candidates,
+                    detectedPorts[index]
+                );
+            }
+        }
+
+
+        // 自動検出をOFFにしている場合、
+        // または自動検出で候補が見つからなかった場合の予備。
+        if (
+            !autoDetectSerialPort ||
+            candidates.Count == 0 ||
+            useConfiguredPortAsFallback
+        )
+        {
+            AddPortCandidate(
+                candidates,
+                portName
+            );
+        }
+
+
+        if (debugLog)
+        {
+            if (candidates.Count <= 0)
+            {
+                Debug.Log(
+                    "SensorRead: シリアルポート候補は0件です。"
+                );
+            }
+            else
+            {
+                Debug.Log(
+                    "SensorRead: シリアルポート候補 = " +
+                    string.Join(
+                        ", ",
+                        candidates
+                    )
+                );
+            }
+        }
+
+
+        return
+            candidates;
+    }
+
+
+    // =========================
+    // macOS USB Serial検索
+    // =========================
+
+    private string[] FindMacUsbSerialPorts()
+    {
+        try
+        {
+            if (
+                string.IsNullOrWhiteSpace(
+                    serialPortSearchDirectory
+                )
+                ||
+                !Directory.Exists(
+                    serialPortSearchDirectory
+                )
+            )
+            {
+                Debug.LogWarning(
+                    "SensorRead: Serial Port Search Directoryが存在しません: " +
+                    serialPortSearchDirectory
+                );
+
+
+                return
+                    new string[0];
+            }
+
+
+            if (
+                string.IsNullOrWhiteSpace(
+                    serialPortSearchPattern
+                )
+            )
+            {
+                Debug.LogWarning(
+                    "SensorRead: Serial Port Search Patternが空です。"
+                );
+
+
+                return
+                    new string[0];
+            }
+
+
+            string[] detectedPorts =
+                Directory.GetFiles(
+                    serialPortSearchDirectory,
+                    serialPortSearchPattern
+                );
+
+
+            // 毎回候補順が変わらないようにソート。
+            System.Array.Sort(
+                detectedPorts,
+                System.StringComparer.Ordinal
+            );
+
+
+            if (debugLog)
+            {
+                Debug.Log(
+                    "SensorRead: 自動検出したポート数 = " +
+                    detectedPorts.Length
+                );
+
+
+                for (
+                    int index = 0;
+                    index < detectedPorts.Length;
+                    index++
+                )
+                {
+                    Debug.Log(
+                        "SensorRead: Detected Port[" +
+                        index +
+                        "] = " +
+                        detectedPorts[index]
+                    );
+                }
+            }
+
+
+            return
+                detectedPorts;
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning(
+                "SensorRead: シリアルポートの自動検索に失敗しました: " +
+                e.Message
+            );
+
+
+            return
+                new string[0];
+        }
+    }
+
+
+    // =========================
+    // ポート候補追加
+    // =========================
+
+    private void AddPortCandidate(
+        List<string> candidates,
+        string candidate
+    )
+    {
+        if (
+            candidates == null ||
+            string.IsNullOrWhiteSpace(
+                candidate
+            )
+        )
+        {
+            return;
+        }
+
+
+        if (
+            candidates.Contains(
+                candidate
+            )
+        )
+        {
+            return;
+        }
+
+
+        candidates.Add(
+            candidate
+        );
+    }
+
+
+    // =========================
+    // 使用可能ポートを順番に試す
+    // =========================
+
+    private bool TryOpenFirstAvailablePort(
+        List<string> candidates
+    )
+    {
+        if (
+            candidates == null ||
+            candidates.Count <= 0
+        )
+        {
+            return false;
+        }
+
+
+        for (
+            int index = 0;
+            index < candidates.Count;
+            index++
+        )
+        {
+            string candidate =
+                candidates[index];
+
+
+            if (
+                TryOpenSerialPort(
+                    candidate
+                )
+            )
+            {
+                selectedPortName =
+                    candidate;
+
+
+                // 実行時に選ばれた値をportNameにも保存しておく。
+                portName =
+                    candidate;
+
+
+                return true;
+            }
+        }
+
+
+        return false;
+    }
+
+
+    // =========================
+    // 1ポートを開く
+    // =========================
+
+    private bool TryOpenSerialPort(
+        string candidate
+    )
+    {
+        CloseSerialPort();
+
+
+        try
+        {
+            serial =
+                new SerialPort(
+                    candidate,
+                    baudRate
+                );
+
+
+            serial.ReadTimeout =
+                50;
+
+
+            serial.Open();
+
+
+            return
+                serial.IsOpen;
+        }
+        catch (System.Exception e)
+        {
+            if (debugLog)
+            {
+                Debug.LogWarning(
+                    "SensorRead: Port Open Failed: " +
+                    candidate +
+                    " / " +
+                    e.Message
+                );
+            }
+
+
+            CloseSerialPort();
+
+
+            return false;
+        }
+    }
+
+
+    // =========================
+    // SerialPortを閉じる
+    // =========================
+
+    private void CloseSerialPort()
+    {
+        if (serial == null)
+        {
+            return;
+        }
+
+
+        try
+        {
+            if (serial.IsOpen)
+            {
+                serial.Close();
+            }
+        }
+        catch (System.Exception e)
+        {
+            if (debugLog)
+            {
+                Debug.LogWarning(
+                    "SensorRead: SerialPort Close Failed: " +
+                    e.Message
+                );
+            }
+        }
+        finally
+        {
+            serial.Dispose();
+
+
+            serial =
+                null;
+        }
     }
 
 
@@ -946,6 +1369,28 @@ public class SensorRead : MonoBehaviour
                 0.0f,
                 keyboardYawDegreesPerSecond
             );
+
+
+        if (
+            string.IsNullOrWhiteSpace(
+                serialPortSearchDirectory
+            )
+        )
+        {
+            serialPortSearchDirectory =
+                "/dev";
+        }
+
+
+        if (
+            string.IsNullOrWhiteSpace(
+                serialPortSearchPattern
+            )
+        )
+        {
+            serialPortSearchPattern =
+                "cu.usbserial-*";
+        }
     }
 
 
@@ -955,7 +1400,8 @@ public class SensorRead : MonoBehaviour
 
     void OnDestroy()
     {
-        running = false;
+        running =
+            false;
 
 
         if (
@@ -963,17 +1409,11 @@ public class SensorRead : MonoBehaviour
             readThread.IsAlive
         )
         {
-            // スレッド終了待ち
+            // ReadTimeoutが50msなので、通常は短時間で終了する。
             readThread.Join();
         }
 
 
-        if (
-            serial != null &&
-            serial.IsOpen
-        )
-        {
-            serial.Close();
-        }
+        CloseSerialPort();
     }
 }
