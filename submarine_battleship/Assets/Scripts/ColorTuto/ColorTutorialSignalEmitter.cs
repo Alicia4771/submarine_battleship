@@ -29,8 +29,15 @@ public class ColorTutorialSignalEmitter : MonoBehaviour
 
     [Header("Signal Timing")]
 
+    [SerializeField, Tooltip(
+        "ONなら、StopSignal()が呼ばれるまで " +
+        "白→固定色列 を無限に繰り返す。チュートリアルではON推奨")]
+    private bool loopUntilStopped =
+        true;
+
+
     [SerializeField, Min(1), Tooltip(
-        "固定色列を繰り返す回数。短いチュートリアルなら1推奨")]
+        "Loop Until StoppedがOFFの場合の繰り返し回数")]
     private int sequenceRepeatCount =
         1;
 
@@ -151,6 +158,16 @@ public class ColorTutorialSignalEmitter : MonoBehaviour
     // Event
     // ============================================================
 
+    /// <summary>
+    /// 白い開始合図 + 固定色列を1周再生し終えた時に発生。
+    /// intは完了した周回数（1, 2, 3 ...）。
+    /// </summary>
+    public event Action<int> SequenceCycleCompleted;
+
+
+    /// <summary>
+    /// Loop Until StoppedがOFFで、指定回数を最後まで再生した時に発生。
+    /// </summary>
     public event Action SignalFinished;
 
 
@@ -340,12 +357,16 @@ public class ColorTutorialSignalEmitter : MonoBehaviour
             );
 
 
-        for (
-            int repeat = 0;
-            repeat < repeatCount;
-            repeat++
-        )
+        int completedCycleCount =
+            0;
+
+
+        while (isPlaying)
         {
+            // ====================================================
+            // 白い開始合図
+            // ====================================================
+
             if (useStartMarker)
             {
                 yield return
@@ -356,6 +377,10 @@ public class ColorTutorialSignalEmitter : MonoBehaviour
                     );
             }
 
+
+            // ====================================================
+            // 固定色列
+            // ====================================================
 
             for (
                 int index = 0;
@@ -374,12 +399,47 @@ public class ColorTutorialSignalEmitter : MonoBehaviour
             }
 
 
+            // ====================================================
+            // 1周完了
+            // ====================================================
+
+            completedCycleCount++;
+
+
+            if (debugLog)
+            {
+                Debug.Log(
+                    "ColorTutorialSignalEmitter: " +
+                    "信号1周完了 / Cycle=" +
+                    completedCycleCount
+                );
+            }
+
+
+            SequenceCycleCompleted?.Invoke(
+                completedCycleCount
+            );
+
+
+            // ====================================================
+            // 有限再生の場合は指定回数で終了
+            // ====================================================
+
             if (
-                repeat <
-                repeatCount - 1
-                &&
-                repeatInterval > 0.0f
+                !loopUntilStopped &&
+                completedCycleCount >=
+                    repeatCount
             )
+            {
+                break;
+            }
+
+
+            // ====================================================
+            // 次の周回までの間隔
+            // ====================================================
+
+            if (repeatInterval > 0.0f)
             {
                 yield return
                     new WaitForSecondsRealtime(
@@ -408,11 +468,14 @@ public class ColorTutorialSignalEmitter : MonoBehaviour
         {
             Debug.Log(
                 "ColorTutorialSignalEmitter: " +
-                "固定色信号の再生が完了しました。"
+                "固定色信号の有限再生が完了しました。"
             );
         }
 
 
+        // Loop Until Stopped = ON の場合は、
+        // StopSignal()がCoroutine自体を停止するため、
+        // ここには通常到達しない。
         SignalFinished?.Invoke();
     }
 

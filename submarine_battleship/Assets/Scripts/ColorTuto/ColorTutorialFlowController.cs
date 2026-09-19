@@ -24,7 +24,10 @@ public class ColorTutorialFlowController : MonoBehaviour
         WaitForInputReady = 7,
         WaitForMissionResult = 8,
         ShowingResetHint = 9,
-        Completed = 10
+        WaitForDangerPeriscopeExposure = 10,
+        WaitForDangerDetection = 11,
+        ShowingDetectionResult = 12,
+        Completed = 13
     }
 
 
@@ -38,6 +41,12 @@ public class ColorTutorialFlowController : MonoBehaviour
     private ColorTutorialSensorBridge sensorBridge;
 
 
+    [SerializeField, Tooltip(
+        "緑ボタン（Button5）の強制スキップ判定に使用するSensorRead。" +
+        "未設定の場合は自動検索する")]
+    private SensorRead sensorRead;
+
+
     [SerializeField]
     private ColorTutorialVideoController videoController;
 
@@ -48,6 +57,11 @@ public class ColorTutorialFlowController : MonoBehaviour
 
     [SerializeField]
     private ColorMemoryMissionManager colorMemoryMissionManager;
+
+
+    [SerializeField, Tooltip(
+        "チュートリアル最後の危険度デモで使用するExposureRiskManager")]
+    private ExposureRiskManager exposureRiskManager;
 
 
     [SerializeField, Tooltip(
@@ -137,6 +151,13 @@ public class ColorTutorialFlowController : MonoBehaviour
         0.8f;
 
 
+    [SerializeField, Min(1), Tooltip(
+        "この回数だけ信号を最後まで見たらSTEP5へ進める。" +
+        "STEP5へ進んだ後も、潜望鏡を完全格納するまでは信号は繰り返し続ける")]
+    private int minimumSignalCyclesBeforeLowering =
+        1;
+
+
     // ============================================================
     // Step 5
     // ============================================================
@@ -156,12 +177,12 @@ public class ColorTutorialFlowController : MonoBehaviour
 
     [SerializeField, TextArea(2, 4)]
     private string inputInstruction =
-        "覚えた色を\n順番に入力してください。";
+        "覚えた色を\n順番に入力してください。\n間違えた場合は白いボタンでリセットできます。";
 
 
     [SerializeField, TextArea(2, 4)]
     private string retryInputInstruction =
-        "入力が違いました。\nもう一度、同じ順番で入力してください。";
+        "入力が違いました。\nもう一度、同じ順番で入力してください。\n白いボタンで入力をリセットできます。";
 
 
     [SerializeField, Min(0.0f), Tooltip(
@@ -189,6 +210,370 @@ public class ColorTutorialFlowController : MonoBehaviour
     [SerializeField, Min(0.0f)]
     private float resetHintDuration =
         3.5f;
+
+
+
+    // ============================================================
+    // Risk Demo
+    // ============================================================
+
+    [Header("Risk Demo")]
+
+    [SerializeField, Min(0.0f), Tooltip(
+        "危険度デモ開始時の危険度。Detection Thresholdより少し低い値にする")]
+    private float riskDemoInitialRisk =
+        85.0f;
+
+
+    [SerializeField, TextArea(3, 6), Tooltip(
+        "白ボタンの補足説明後に表示する文章")]
+    private string riskDemoInstruction =
+        "最後に危険度について確認します。\n危険度が100になると敵に発見され、スコアが減点されます。\n赤いボタンで潜望鏡を海面上まで上げてください。";
+
+
+    [SerializeField, TextArea(2, 5), Tooltip(
+        "潜望鏡が海面上に出た後、発見されるまで表示する文章")]
+    private string riskIncreasingInstruction =
+        "危険度が上昇しています。\n100になると敵に発見され、スコアが減点されます。";
+
+
+    [SerializeField, Min(0.0f), Tooltip(
+        "敵に発見された後、結果を見せてからメインシーンへ移るまでの時間")]
+    private float detectionResultDisplayDuration =
+        3.0f;
+
+
+    [SerializeField, Tooltip(
+        "危険度デモ開始時に赤ボタンで潜望鏡を上げる動画を表示する")]
+    private bool showRaiseVideoDuringRiskDemo =
+        true;
+
+
+    [SerializeField, Tooltip(
+        "発見結果表示後、自動的にMainColorSceneへ移動する")]
+    private bool autoLoadMainSceneAfterRiskDemo =
+        true;
+
+
+    // ============================================================
+    // Risk Demo
+    // ============================================================
+
+    private void BeginRiskDemo()
+    {
+        DisableAllInputs();
+
+
+        if (exposureRiskManager == null)
+        {
+            BeginTutorialComplete();
+
+            return;
+        }
+
+
+        videoController
+            .HideVideo();
+
+
+        // 危険度デモ開始時点のスコアを保存。
+        // 発見後に実際に何点減ったかを表示する。
+        scoreBeforeRiskDemo =
+            DataManager
+                .GetScore();
+
+
+        riskDemoDetectionHandled =
+            false;
+
+
+        // 潜望鏡を上げる前は危険度を固定する。
+        // 85を表示したままプレイヤーの操作を待てる。
+        exposureRiskManager.enabled =
+            true;
+
+
+        exposureRiskManager
+            .SetRiskSystemEnabled(
+                false
+            );
+
+
+        exposureRiskManager
+            .ResetRisk();
+
+
+        float detectionThreshold =
+            exposureRiskManager
+                .GetDetectionThreshold();
+
+
+        float initialRisk =
+            Mathf.Min(
+                riskDemoInitialRisk,
+                Mathf.Max(
+                    0.0f,
+                    detectionThreshold -
+                    0.1f
+                )
+            );
+
+
+        exposureRiskManager
+            .SetRisk(
+                initialRisk
+            );
+
+
+        sensorBridge
+            .AllowOnlyButton2();
+
+
+        currentState =
+            TutorialState
+                .WaitForDangerPeriscopeExposure;
+
+
+        SetTutorialText(
+            "危険度",
+            riskDemoInstruction
+        );
+
+
+        if (showRaiseVideoDuringRiskDemo)
+        {
+            videoController
+                .PlayRaisePeriscopeVideo();
+        }
+
+
+        DebugMessage(
+            "危険度デモ開始 / 初期危険度=" +
+            initialRisk
+        );
+    }
+
+
+    private void CheckDangerPeriscopeExposure()
+    {
+        if (
+            !DataManager
+                .GetIsPeriscopeAboveSurface()
+        )
+        {
+            return;
+        }
+
+
+        // 海面上へ出た瞬間から本物の危険度システムを再開。
+        // Periscope Risk Per Secondの設定値で85→100へ自然に上昇する。
+        exposureRiskManager
+            .SetRiskSystemEnabled(
+                true
+            );
+
+
+        currentState =
+            TutorialState
+                .WaitForDangerDetection;
+
+
+        videoController
+            .HideVideo();
+
+
+        SetTutorialText(
+            "危険度",
+            riskIncreasingInstruction
+        );
+
+
+        DebugMessage(
+            "潜望鏡露出を確認 / 危険度上昇開始"
+        );
+    }
+
+
+    private void HandleEnemyDetectionTriggered(
+        int detectionCount
+    )
+    {
+        if (
+            currentState !=
+            TutorialState.WaitForDangerDetection
+            ||
+            riskDemoDetectionHandled
+        )
+        {
+            return;
+        }
+
+
+        riskDemoDetectionHandled =
+            true;
+
+
+        DisableAllInputs();
+
+
+        // ExposureRiskManager側で、
+        // このイベントが発生する前にスコア減点と危険度リセットが完了している。
+        int scoreAfterDetection =
+            DataManager
+                .GetScore();
+
+
+        int scoreDifference =
+            scoreAfterDetection -
+            scoreBeforeRiskDemo;
+
+
+        // 発見後の危険度を固定し、結果を落ち着いて見られるようにする。
+        exposureRiskManager
+            .SetRiskSystemEnabled(
+                false
+            );
+
+
+        currentState =
+            TutorialState
+                .ShowingDetectionResult;
+
+
+        string scoreDifferenceText =
+            scoreDifference >= 0
+                ? "+" +
+                    scoreDifference
+                : scoreDifference
+                    .ToString();
+
+
+        string detectionInstruction =
+            "敵に発見されました！\n" +
+            "危険度が100になるとスコアが減点されます。\n" +
+            "スコア：" +
+            scoreBeforeRiskDemo +
+            " → " +
+            scoreAfterDetection +
+            "（" +
+            scoreDifferenceText +
+            "点）";
+
+
+        SetTutorialText(
+            "危険度",
+            detectionInstruction
+        );
+
+
+        StartFlowCoroutine(
+            DetectionResultRoutine()
+        );
+
+
+        DebugMessage(
+            "敵発見デモ完了 / DetectionCount=" +
+            detectionCount +
+            " / Score=" +
+            scoreBeforeRiskDemo +
+            "→" +
+            scoreAfterDetection
+        );
+    }
+
+
+    private IEnumerator DetectionResultRoutine()
+    {
+        if (
+            detectionResultDisplayDuration >
+            0.0f
+        )
+        {
+            yield return
+                new WaitForSecondsRealtime(
+                    detectionResultDisplayDuration
+                );
+        }
+
+
+        flowCoroutine =
+            null;
+
+
+        if (autoLoadMainSceneAfterRiskDemo)
+        {
+            ChangeToMainColorScene();
+
+            yield break;
+        }
+
+
+        BeginTutorialComplete();
+    }
+
+
+    private void ChangeToMainColorScene()
+    {
+        if (isChangingScene)
+        {
+            return;
+        }
+
+
+        isChangingScene =
+            true;
+
+
+        DisableAllInputs();
+
+
+        Time.timeScale =
+            1.0f;
+
+
+        if (
+            string.IsNullOrWhiteSpace(
+                mainColorSceneName
+            )
+        )
+        {
+            Debug.LogError(
+                "ColorTutorialFlowController: " +
+                "Main Color Scene Nameが空です。"
+            );
+
+
+            isChangingScene =
+                false;
+
+            return;
+        }
+
+
+        SceneManager.LoadScene(
+            mainColorSceneName
+        );
+    }
+
+
+    // ============================================================
+    // Force Skip
+    // ============================================================
+
+    [Header("Force Skip")]
+
+    [SerializeField, Tooltip(
+        "ONなら、チュートリアル中のどのSTEPでも緑ボタン（Button5）で" +
+        "MainColorSceneへ強制遷移できる")]
+    private bool enableButton5ForceSkip =
+        true;
+
+
+    [SerializeField, Tooltip(
+        "シーン開始時にButton5が押しっぱなしでも誤遷移しないよう、" +
+        "一度離された後の押下だけを受け付ける")]
+    private bool requireButton5ReleaseBeforeSkip =
+        true;
 
 
     // ============================================================
@@ -225,6 +610,12 @@ public class ColorTutorialFlowController : MonoBehaviour
 
     [SerializeField]
     private int debugButton1 =
+        0;
+
+
+    [SerializeField, Tooltip(
+        "SensorReadから直接取得した緑ボタン（Button5）の値")]
+    private int debugRawButton5 =
         0;
 
 
@@ -282,6 +673,26 @@ public class ColorTutorialFlowController : MonoBehaviour
         false;
 
 
+    private bool button5ReleasedAfterSceneStart =
+        false;
+
+
+    private int previousRawButton5 =
+        0;
+
+
+    private bool isChangingScene =
+        false;
+
+
+    private int scoreBeforeRiskDemo =
+        0;
+
+
+    private bool riskDemoDetectionHandled =
+        false;
+
+
     private Coroutine flowCoroutine;
 
 
@@ -317,7 +728,16 @@ public class ColorTutorialFlowController : MonoBehaviour
         }
 
 
+        InitializeButton5ForceSkip();
+
+
         SubscribeMissionEvents();
+
+
+        SubscribeRiskEvents();
+
+
+        PrepareRiskSystemForTutorial();
 
 
         SetSonarPanel(
@@ -344,6 +764,9 @@ public class ColorTutorialFlowController : MonoBehaviour
         UnsubscribeMissionEvents();
 
 
+        UnsubscribeRiskEvents();
+
+
         UnsubscribeSignalEmitter();
 
 
@@ -365,6 +788,14 @@ public class ColorTutorialFlowController : MonoBehaviour
 
     private void Update()
     {
+        // 緑ボタン（Button5）はチュートリアルのSTEP制御より優先する。
+        // SensorBridgeの許可状態に関係なく、SensorReadから直接取得する。
+        if (CheckButton5ForceSkip())
+        {
+            return;
+        }
+
+
         UpdateDebugValues();
 
 
@@ -412,6 +843,13 @@ public class ColorTutorialFlowController : MonoBehaviour
                 break;
 
 
+            case TutorialState.WaitForDangerPeriscopeExposure:
+
+                CheckDangerPeriscopeExposure();
+
+                break;
+
+
             case TutorialState.Completed:
 
                 CheckCompleteInput();
@@ -422,11 +860,135 @@ public class ColorTutorialFlowController : MonoBehaviour
             case TutorialState.PlayingSignal:
             case TutorialState.WaitForMissionResult:
             case TutorialState.ShowingResetHint:
+            case TutorialState.WaitForDangerDetection:
+            case TutorialState.ShowingDetectionResult:
             case TutorialState.None:
             default:
 
                 break;
         }
+    }
+
+
+    // ============================================================
+    // Force Skip - Button5
+    // ============================================================
+
+    private void InitializeButton5ForceSkip()
+    {
+        int button5 =
+            ReadRawButton5();
+
+
+        previousRawButton5 =
+            button5;
+
+
+        if (requireButton5ReleaseBeforeSkip)
+        {
+            button5ReleasedAfterSceneStart =
+                button5 == 0;
+        }
+        else
+        {
+            button5ReleasedAfterSceneStart =
+                true;
+        }
+
+
+        debugRawButton5 =
+            button5;
+    }
+
+
+    private bool CheckButton5ForceSkip()
+    {
+        if (
+            !enableButton5ForceSkip ||
+            isChangingScene ||
+            sensorRead == null
+        )
+        {
+            return false;
+        }
+
+
+        int currentButton5 =
+            ReadRawButton5();
+
+
+        debugRawButton5 =
+            currentButton5;
+
+
+        // シーン開始時に押しっぱなしだった場合は、
+        // 一度離されるまで強制遷移を受け付けない。
+        if (!button5ReleasedAfterSceneStart)
+        {
+            previousRawButton5 =
+                currentButton5;
+
+
+            if (currentButton5 == 0)
+            {
+                button5ReleasedAfterSceneStart =
+                    true;
+            }
+
+
+            return false;
+        }
+
+
+        bool pressedThisFrame =
+            currentButton5 == 1 &&
+            previousRawButton5 != 1;
+
+
+        previousRawButton5 =
+            currentButton5;
+
+
+        if (!pressedThisFrame)
+        {
+            return false;
+        }
+
+
+        DebugMessage(
+            "Button5（緑）を検出したため、チュートリアルをスキップします。"
+        );
+
+
+        ChangeToMainColorScene();
+
+
+        return true;
+    }
+
+
+    private int ReadRawButton5()
+    {
+        if (sensorRead == null)
+        {
+            return 0;
+        }
+
+
+        sensorRead.GetSensorData(
+            out _,
+            out _,
+            out _,
+            out _,
+            out _,
+            out _,
+            out int button5,
+            out _
+        );
+
+
+        return
+            button5;
     }
 
 
@@ -516,6 +1078,15 @@ public class ColorTutorialFlowController : MonoBehaviour
         }
 
 
+        if (sensorRead == null)
+        {
+            sensorRead =
+                FindFirstObjectByType<
+                    SensorRead
+                >();
+        }
+
+
         if (videoController == null)
         {
             videoController =
@@ -543,6 +1114,15 @@ public class ColorTutorialFlowController : MonoBehaviour
         }
 
 
+        if (exposureRiskManager == null)
+        {
+            exposureRiskManager =
+                FindFirstObjectByType<
+                    ExposureRiskManager
+                >();
+        }
+
+
         if (periscopeCamera == null)
         {
             periscopeCamera =
@@ -558,6 +1138,20 @@ public class ColorTutorialFlowController : MonoBehaviour
             Debug.LogError(
                 "ColorTutorialFlowController: " +
                 "ColorTutorialSensorBridgeがありません。"
+            );
+
+            return false;
+        }
+
+
+        if (
+            enableButton5ForceSkip &&
+            sensorRead == null
+        )
+        {
+            Debug.LogError(
+                "ColorTutorialFlowController: " +
+                "Button5強制スキップがONですが、SensorReadがありません。"
             );
 
             return false;
@@ -591,6 +1185,17 @@ public class ColorTutorialFlowController : MonoBehaviour
             Debug.LogError(
                 "ColorTutorialFlowController: " +
                 "ColorMemoryMissionManagerがありません。"
+            );
+
+            return false;
+        }
+
+
+        if (exposureRiskManager == null)
+        {
+            Debug.LogError(
+                "ColorTutorialFlowController: " +
+                "ExposureRiskManagerがありません。"
             );
 
             return false;
@@ -657,6 +1262,68 @@ public class ColorTutorialFlowController : MonoBehaviour
         colorMemoryMissionManager
             .MissionEvaluated -=
                 HandleMissionEvaluated;
+    }
+
+
+    // ============================================================
+    // Risk Events
+    // ============================================================
+
+    private void SubscribeRiskEvents()
+    {
+        if (exposureRiskManager == null)
+        {
+            return;
+        }
+
+
+        exposureRiskManager
+            .EnemyDetectionTriggered -=
+                HandleEnemyDetectionTriggered;
+
+
+        exposureRiskManager
+            .EnemyDetectionTriggered +=
+                HandleEnemyDetectionTriggered;
+    }
+
+
+    private void UnsubscribeRiskEvents()
+    {
+        if (exposureRiskManager == null)
+        {
+            return;
+        }
+
+
+        exposureRiskManager
+            .EnemyDetectionTriggered -=
+                HandleEnemyDetectionTriggered;
+    }
+
+
+    private void PrepareRiskSystemForTutorial()
+    {
+        if (exposureRiskManager == null)
+        {
+            return;
+        }
+
+
+        // MonoBehaviour自体は有効のままにしてUIとの接続を維持する。
+        exposureRiskManager.enabled =
+            true;
+
+
+        // 通常のチュートリアル進行中は危険度が勝手に上がらないよう停止。
+        exposureRiskManager
+            .SetRiskSystemEnabled(
+                false
+            );
+
+
+        exposureRiskManager
+            .ResetRisk();
     }
 
 
@@ -1077,6 +1744,11 @@ public class ColorTutorialFlowController : MonoBehaviour
 
 
         tutorialSignalEmitter
+            .SequenceCycleCompleted +=
+                HandleTutorialSignalCycleCompleted;
+
+
+        tutorialSignalEmitter
             .SignalFinished +=
                 HandleTutorialSignalFinished;
 
@@ -1146,8 +1818,11 @@ public class ColorTutorialFlowController : MonoBehaviour
     }
 
 
-    private void HandleTutorialSignalFinished()
+    private void HandleTutorialSignalCycleCompleted(
+        int completedCycleCount
+    )
     {
+        // STEP4中だけ判定する。
         if (
             currentState !=
             TutorialState.PlayingSignal
@@ -1157,13 +1832,42 @@ public class ColorTutorialFlowController : MonoBehaviour
         }
 
 
-        UnsubscribeSignalEmitter();
+        if (
+            completedCycleCount <
+            minimumSignalCyclesBeforeLowering
+        )
+        {
+            return;
+        }
 
 
-        colorMemoryMissionManager
-            .NotifyEnemySequenceFinished(
-                tutorialEnemyMemoryComponent
-            );
+        // ここでは信号を止めない。
+        //
+        // STEP5へ進んだ後も、
+        // プレイヤーが潜望鏡を完全に格納するまでは
+        // 白→赤→青→赤→赤... を繰り返し続ける。
+        BeginStep5LowerPeriscope();
+
+
+        DebugMessage(
+            "信号を必要回数確認しました。STEP5へ進みます。"
+        );
+    }
+
+
+    private void HandleTutorialSignalFinished()
+    {
+        // Loop Until StoppedがOFFの場合の保険。
+        //
+        // 有限再生がSTEP4中に終了した場合も、
+        // STEP5へ進める。
+        if (
+            currentState !=
+            TutorialState.PlayingSignal
+        )
+        {
+            return;
+        }
 
 
         BeginStep5LowerPeriscope();
@@ -1176,6 +1880,11 @@ public class ColorTutorialFlowController : MonoBehaviour
         {
             return;
         }
+
+
+        tutorialSignalEmitter
+            .SequenceCycleCompleted -=
+                HandleTutorialSignalCycleCompleted;
 
 
         tutorialSignalEmitter
@@ -1223,16 +1932,36 @@ public class ColorTutorialFlowController : MonoBehaviour
         }
 
 
+        // 潜望鏡を完全に格納した時点で、
+        // STEP4から繰り返していた敵艦信号を停止する。
+        if (tutorialSignalEmitter != null)
+        {
+            tutorialSignalEmitter
+                .StopSignal();
+        }
+
+
+        UnsubscribeSignalEmitter();
+
+
+        // 信号確認が完了したことをMissionManagerへ通知する。
+        //
+        // 潜望鏡はすでに完全格納されているため、
+        // MissionManagerはInputtingへ進める。
+        colorMemoryMissionManager
+            .NotifyEnemySequenceFinished(
+                tutorialEnemyMemoryComponent
+            );
+
+
         // ここでは入力を無効化しない。
         //
         // STEP5ではButton3（青）だけを許可しているため、
         // 潜望鏡を下げ終えた瞬間も、実際に青ボタンを
         // 押し続けている間はDataManager上のButton3を1のまま保つ。
         //
-        // これによりColorSequenceInputController側の
-        // 「入力開始時にButton2～4が押されていたら、
-        // 一度すべて離すまで入力しない」
-        // という保護処理を正しく働かせることができる。
+        // その後CheckInputReady()でButton2～4がすべて離されたことを
+        // 確認してからSTEP6へ進む。
         currentState =
             TutorialState.WaitForInputReady;
 
@@ -1304,15 +2033,16 @@ public class ColorTutorialFlowController : MonoBehaviour
         DisableAllInputs();
 
 
-        // Button2=赤、Button3=青、Button4=黄。
-        // 白Button6は今回は説明のみなので操作練習では無効。
+        // Button2=赤、Button3=青、Button4=黄、Button6=白。
+        // STEP6では白ボタンも有効にし、
+        // 入力途中の色列をリセットできるようにする。
         sensorBridge
             .SetButtonsAllowed(
                 false,
                 true,
                 true,
                 true,
-                false
+                true
             );
 
 
@@ -1406,7 +2136,7 @@ public class ColorTutorialFlowController : MonoBehaviour
             null;
 
 
-        BeginTutorialComplete();
+        BeginRiskDemo();
     }
 
 
@@ -1587,9 +2317,7 @@ public class ColorTutorialFlowController : MonoBehaviour
         }
 
 
-        SceneManager.LoadScene(
-            mainColorSceneName
-        );
+        ChangeToMainColorScene();
     }
 
 
@@ -1708,6 +2436,13 @@ public class ColorTutorialFlowController : MonoBehaviour
                 .GetSensorButton1();
 
 
+        if (sensorRead != null)
+        {
+            debugRawButton5 =
+                ReadRawButton5();
+        }
+
+
         debugSonarPanelActive =
             sonarPanel != null &&
             sonarPanel.activeSelf;
@@ -1771,6 +2506,13 @@ public class ColorTutorialFlowController : MonoBehaviour
                 return 6;
 
 
+            case TutorialState.WaitForDangerPeriscopeExposure:
+            case TutorialState.WaitForDangerDetection:
+            case TutorialState.ShowingDetectionResult:
+
+                return 7;
+
+
             default:
 
                 return 0;
@@ -1806,6 +2548,13 @@ public class ColorTutorialFlowController : MonoBehaviour
             );
 
 
+        minimumSignalCyclesBeforeLowering =
+            Mathf.Max(
+                1,
+                minimumSignalCyclesBeforeLowering
+            );
+
+
         retryDelay =
             Mathf.Max(
                 0.0f,
@@ -1824,6 +2573,20 @@ public class ColorTutorialFlowController : MonoBehaviour
             Mathf.Max(
                 0.0f,
                 resetHintDuration
+            );
+
+
+        riskDemoInitialRisk =
+            Mathf.Max(
+                0.0f,
+                riskDemoInitialRisk
+            );
+
+
+        detectionResultDisplayDuration =
+            Mathf.Max(
+                0.0f,
+                detectionResultDisplayDuration
             );
     }
 }

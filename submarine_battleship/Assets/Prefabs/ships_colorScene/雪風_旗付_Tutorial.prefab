@@ -6130,7 +6130,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ColorTutorialSignalEmitter
   fixedSequence: 00000000010000000000000000000000
-  sequenceRepeatCount: 1
+  sequenceRepeatCount: 100
   useStartMarker: 1
   startMarkerDuration: 0.4
   startMarkerBlankDuration: 0.3
